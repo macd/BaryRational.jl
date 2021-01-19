@@ -1,0 +1,13 @@
+name = "BaryRational"
+uuid = "91aaffc3-5777-4842-85b7-5d3d5d6a3494"
+authors = ["Don MacMillen"]
+version = "0.1.0"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[compat]
+julia = "1.5"
+
+[targets]
+test = ["Test"]
