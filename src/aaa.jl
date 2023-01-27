@@ -146,6 +146,7 @@ function cleanup!(r, pol, res, zer, Z, F)
     ni == 0 && return
     println("$ni Froissart doublets. Number of residues = ", length(res))
 
+    # For each spurious pole find and remove closest support point:
     @inbounds for j = 1:ni
         azp = abs.(z .- pol[ii[j]] )
         jj = findall(isequal(minimum(azp)), azp)
@@ -153,6 +154,7 @@ function cleanup!(r, pol, res, zer, Z, F)
         deleteat!(f, jj)
     end    
 
+    # Remove support points z from sample set:
     @inbounds for j = 1:length(z)
         jj = findall(isequal(z[j]), Z)
         deleteat!(F, jj)
@@ -164,7 +166,9 @@ function cleanup!(r, pol, res, zer, Z, F)
     C = 1 ./ (Z .- transpose(z))
     A = SF*C - C*Sf
     G = svd(A)
-    w[:] .= G.V[:, m]
-    println("cleanup: ", size(z), "  ", size(f), "  ", size(w))
+    ww = G.V[:, m]
+    deleteat!(r.w, 1:(length(r.w) - length(ww)))
+    r.w .= ww
     return nothing
 end
+
