@@ -1,4 +1,7 @@
 
+#=
+# This needs a different approach, I think
+
 # From Baltensperger and Trummer (eqns 3 - 5) we have the following.
 function D1(r::T) where {T <: BRInterp}
     n = length(r.x)
@@ -57,3 +60,5 @@ function divided_difference(x, y)
     end
     return s
 end
+
+=#

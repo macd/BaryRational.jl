@@ -1,5 +1,5 @@
 module BaryRational
-export FHInterp, bary, chebpts, chebwts, floater_weights, lagrange_weights, aaa, prz, differ, Dcheb
+export FHInterp, bary, chebpts, chebwts, floater_weights, lagrange_weights, aaa, prz
 using LinearAlgebra
 using Statistics
 using SparseArrays
@@ -16,7 +16,7 @@ end
 include("weights.jl")
 include("bary.jl")
 include("aaa.jl")
-include("derivatives.jl")
+#include("derivatives.jl")
 
 function FHInterp(x::Vector{T}, f::Vector{T}; order::Int=0, grid=false) where {T}
     if grid

@@ -8,13 +8,11 @@
 This small package contains both one dimensional barycentric rational
 approximation, using the AAA algorithm [1], and one dimensional
 barycentric rational interpolation with the Floater-Hormann weights
-[2]. The derivatives are calculated using the formulas of [3].
+[2].
 
 The AAA approximation algorithm can model the poles of a function, if
 present. The FH interpolation is guaranteed to not contain any poles 
 inside of the interpolation interval.
-
-NOTE: Currently, the derivatives are not working.
 
 ## Usage
 
@@ -94,6 +92,7 @@ AAA approximation algorithm to generate an approximation, use that to generate t
 the Chebyshev grid, use ApproxFun.transform to transform the function values to coefficients
 and then construct the Fun.  The following shows how.
 
+    using LinearAlgebra
     using ApproxFun
     import BaryRational as br
 
@@ -110,9 +109,9 @@ and then construct the Fun.  The following shows how.
     faaa = br.aaa(xx, yy);
 
     # but ApproxFun needs to be evaluated on the Chebyshev points
-    n = 129
-    pts = chebyshevpoints(n);
     S = Chebyshev();
+    n = 129
+    pts = points(S, n);
 
     # construct the Fun using the aaa approximation on the Chebyshev points
     pn = Fun(S, ApproxFun.transform(S, faaa.(pts)));
@@ -122,7 +121,7 @@ and then construct the Fun.  The following shows how.
     fapx = tanh(4x - 1);
     println(norm(fapx - pn))
 
-which yields an error norm of 2.955569189697878e-14. Pretty nice.
+which yields an error norm of 3.0186087174306446e-14. Pretty nice.
 
 
 [1] [The AAA algorithm for rational approximation](http://arxiv.org/abs/1612.00337)
