@@ -71,11 +71,14 @@ function aaa(Z::AbstractArray{T,1}, F::AbstractArray{S,1}; tol=1e-13, mmax=100,
 
         Sf = diagm(f)                         # right scaling matrix
         A = SF * C - C * Sf                   # Loewner matrix
-        G = svd(A[J, :])
+
+        # There are times when we need the full decomposition here. We could
+        # just always set full=true, but that slows down the test suite by
+        # almost 3X
+        mv, nv = size(A[J, :])
+        G = svd(A[J, :], full=(mv < nv))
         
-        # A[J, :] might not have full rank, so svd can return fewer than m columns
-        #w = G.V[:, m]                        
-        w = G.V[:, end]                       # weight vector = min sing vector
+        w = G.V[:, m]
         
         N = C * (w .* f)                      # numerator 
         D = C * w

@@ -20,6 +20,7 @@ include("test_fh.jl")
         @test test_aaa_residuals()
         #@test test_aaa_case2()
         #@test test_aaa_scale_invar()
+        @test test_aaa_full_svd()
     end
     @testset "FH_rational_interpolation" begin
         @test test_fh_runge()
