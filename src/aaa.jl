@@ -42,11 +42,18 @@ function aaa(Z::AbstractArray{T,1}, F::AbstractArray{S,1}; tol=1e-13, mmax=100,
     keep = isfinite.(F)
     F = F[keep]
     Z = Z[keep]
-    
+
+    # Remove repeated elements of Z and corresponding elements of F
+    ii = unique(i -> Z[i], eachindex(Z))
+    Z = Z[ii]
+    F = F[ii]
+
     M = length(Z)                    # number of sample points
     mmax = min(M, mmax)              # max number of support points
     
-    reltol = tol*norm(F, Inf)
+    reltol = tol * norm(F, Inf)
+    verbose && println("\nreltol: ", reltol)
+
     SF = spdiagm(M, M, 0 => F)       # left scaling matrix
     
     F, Z = promote(F, Z)
@@ -59,7 +66,7 @@ function aaa(Z::AbstractArray{T,1}, F::AbstractArray{S,1}; tol=1e-13, mmax=100,
     w = P[]
     
     errvec = P[]
-    R = F .- mean(F)
+    R = fill(mean(F), size(F))
     @inbounds for m = 1:mmax
         j = argmax(abs.(F .- R))               # select next support point
         push!(z, Z[j])
@@ -121,21 +128,30 @@ function prz(r::AAAapprox)
     pol, res, zer
 end
 
-
+# This is just the barycentric interpolation formula in matrix form.
+# It is doing the same calculation as bary(...) only it does not need
+# to be broadcasted over zz. For a random vector xx of length 1000 between
+# -1 and 1, with a function with 17 support points, I see the following:
+#
+# julia @v1.10> @btime dya = g(xx);
+#   20.143 μs (15 allocations: 165.98 KiB)
+#
+# julia @v1.10> @btime dya = bary.(xx, g);
+#   17.230 μs (6 allocations: 8.12 KiB)
 function reval(zz, z, f, w)
     # evaluate r at zz
     zv = size(zz) == () ? [zz] : vec(zz)  
-    CC = 1.0 ./ (zv .- transpose(z))           # Cauchy matrix
-    r = (CC * (w .* f)) ./ (CC * w)            # AAA approx as vector
+    CC = 1.0 ./ (zv .- transpose(z))         # Cauchy matrix
+    r = (CC * (w .* f)) ./ (CC * w)          # AAA approx as vector
     r[isinf.(zv)] .= sum(f .* w) ./ sum(w)
     
-    ii = findall(isnan.(r))                    # find values NaN = Inf/Inf if any
+    ii = findall(isnan.(r))               # find values NaN = Inf/Inf if any
     @inbounds for j in ii
-        if !isnan(zv[j]) && ((v = findfirst(isequal(zv[j]), z)) !== nothing)
+        if !isnan(zv[j]) && ((v = findfirst(==(zv[j]), z)) !== nothing)
             r[j] = f[v]  # force interpolation there
         end
     end
-    r = size(zz) == () ? r[1] : reshape(r, size(zz))             # the AAA approximation
+    r = size(zz) == () ? r[1] : reshape(r, size(zz))  # the AAA approximation
 end
 
 

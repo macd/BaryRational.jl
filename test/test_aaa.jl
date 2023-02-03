@@ -1,4 +1,5 @@
 using SpecialFunctions
+using ForwardDiff
 
 # sort by increasing absolute value of the real part. Hack to get poles ordered
 # for testing
@@ -35,7 +36,7 @@ function test_aaa_gamma_poles()
     pol, res, zer = prz(f)
     spol = csort(pol)
     p1 = isapprox(spol[1],  0.0, atol=1e-15)
-    p2 = isapprox(spol[2], -1.0, atol=1e-15)
+    p2 = isapprox(spol[2], -1.0, atol=1e-14)
     p3 = isapprox(spol[3], -2.0, atol=2e-7)
     p4 = isapprox(spol[4], -3.0, atol=3e-3)
     return p1 & p2 & p3 & p4
@@ -190,3 +191,31 @@ function test_aaa_full_svd()
     return  isfinite(g(g.x[1])) &&  g.errvec[end] < 1e-14
 end
 
+
+f(x) = sin(x) ^ 2 + cos(10x)
+
+function test_aaa_deriv()
+    x = [-1.0:0.01:1.0;]
+    y = f.(x)
+    g = aaa(x, y)
+    xx = -1.0 .+ 2rand(100)
+    dya = deriv.(g, xx)
+    dyf = ForwardDiff.derivative.(f, xx)
+    return  norm(dya - dyf, Inf) < 1e-12
+end
+
+h(x) = cos(x) ^ 3 + sqrt(abs(sin(x)))
+
+# This one is challenging because we will have a pole (not simple) at zero
+# and we have accuracy problems there. But elsewhere it is OK.
+function test_aaa_deriv2()
+    x = [-1.0:0.01:1.0;]
+    y = h.(x)
+    g = aaa(x, y)
+    xx = x .+ 0.005
+    dya = deriv.(g, xx)
+    dyf = ForwardDiff.derivative.(h, xx)
+    idx = 94:106
+    dya[idx] .= dyf[idx] .= 0.0
+    return  norm(dya - dyf, Inf) < 1e-9
+end

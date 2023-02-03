@@ -1,8 +1,9 @@
-# Is z within an isapprox of any x[i] ? 
-# Assumes that x is sorted from lowest to highest
+# Is z within an isapprox of any x[i] ? (Only for use when we hit a NaN)
+# Assumes that x is sorted from lowest to highest, which is kind of an
+# imposition, but if not, then we are into linear search
 function nearby(z::T, x::Vector{T}) where {T}
-    top = length(x)
-    bot = 1
+    top = lastindex(x)
+    bot = firstindex(x)
     mid = div(top, 2)
     while bot < mid < top
         if z > x[mid]
@@ -16,7 +17,8 @@ function nearby(z::T, x::Vector{T}) where {T}
     end
     isapprox(x[bot], z) && return bot
     isapprox(x[top], z) && return top
-    return -1   # should error
+    println(z, "  ", x[bot], "  ", x[top])
+    error(z, " not found in x")
 end
 
 
@@ -36,16 +38,23 @@ function bary(z::T, f::Vector{T}, x::Vector{T}, w::Vector{T}) where {T}
     # assert(length(f) == length(x) == length(w))
     num = zero(T)
     den = zero(T)
-    @inbounds for j = 1:length(f)
+    @inbounds for j in eachindex(f)
         t = w[j] / (z - x[j])
         num += t * f[j]
         den += t
     end
     fz = num / den
-    fz = isnan(fz) ? f[nearby(z, x)] : fz
+    fz = isfinite(fz) ? fz : f[nearby(z, x)]
 end
 
 
+function bary(z::T, a::U) where {T, U <: BRInterp}
+    bary(z, a.f, a.x, a.w)
+end
+
+
+# when we know f at the chebyshev points (weights are +/- 1)
+# so that both x and w are implied. Overkill?
 function bary(z, f)
     n = length(f)
     x = chebpts(n)
@@ -64,7 +73,7 @@ function bary(z, f)
     num += t * f[n]
     den += t
     fz = num / den
-    fz = isnan(fz) ? f[nearby(z, x)] : fz    
+    fz = isfinite(fz) ? fz : f[nearby(z, x)]
 end
 
 

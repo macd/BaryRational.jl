@@ -87,7 +87,7 @@ function lagrange_weights(x::Vector{T}) where {T}
     n = length(x)
     w = ones(T, n)
     t = copy(w)
-    @inbounds for i ∈ 1:n
+    @inbounds for i in eachindex(x)
         t .= x[i] .- x
         t[i] = one(eltype(x))
         w[i] = one(eltype(x)) / prod(t)

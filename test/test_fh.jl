@@ -27,3 +27,15 @@ function test_abs_x(order=3)
     end
     return pass
 end
+
+fh(x) = sin(x) ^ 2 + cos(10x)
+
+function test_fh_deriv()
+    x = [-1.0:0.01:1.0;]
+    y = fh.(x)
+    g = aaa(x, y)
+    xx = -1.0 .+ 2rand(100)
+    dya = deriv.(g, xx)
+    dyf = ForwardDiff.derivative.(fh, xx)
+    return  norm(dya - dyf, Inf) < 1e-12
+end

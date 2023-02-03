@@ -8,7 +8,7 @@
 This small package contains both one dimensional barycentric rational
 approximation, using the AAA algorithm [1], and one dimensional
 barycentric rational interpolation with the Floater-Hormann weights
-[2].
+[2]. It can also calculate the derivatives using the algorithm from [3].
 
 The AAA approximation algorithm can model the poles of a function, if
 present. The FH interpolation is guaranteed to not contain any poles 
@@ -19,15 +19,18 @@ inside of the interpolation interval.
     julia> using BaryRational
     julia> x = [-3.0:0.1:3.0;];
     julia> f = x -> sin(x) + 2exp(x)
-    julia> fh = FHInterp(x, f.(x), order=3, grid=true)
+    julia> fh = FHInterp(x, f.(x), order=8, grid=true)
     julia> fh(1.23)
     7.78493669233287
+    julia> deriv(fh, 1.23)
+    7.176696799673523
     
 Note that the default order is 0. The best choice of the order
 parameter appears to be dependent on the number of points (see Table 2
 of [1]) So for smaller data sets, order=3 or order=4 can be good
-choices. This algorithm is not adaptive so you will have to try and see
-what works best for you
+choices. However, if you need more accurate derivatives, you may need
+to go to higher, as we did with order=8 above. This algorithm is not
+adaptive so you will have to try and see what works best for you.
 
 If you know that the x points are on an even grid, use grid=true
 
@@ -36,12 +39,17 @@ For approximation using aaa:
     julia> a = aaa(x, f.(x))
     julia> a(1.23)
     7.784947874510929
+    julia> deriv(a, 1.23)
+    7.17669679970369
     
 and finally the exact result
 
     julia> f(1.23)
     7.784947874511044
-
+    julia> df = x -> cos(x) + 2exp(x)
+    julia> df(1.23)
+    7.1766967997038495
+    
 The AAA algorithm is adaptive in the subset of support points that it
 chooses to use.
 
