@@ -57,7 +57,7 @@ end
     -0.3271946967961522441733440852676206060643014068937597915900562770705763744817662
 """
 function aaa(Z::AbstractArray{T,1}, F::AbstractArray{S,1}; tol=1e-13, mmax=100,
-             verbose=false, clean=true, do_sort=true) where {S, T}
+             verbose=false, clean=true, do_sort=false) where {S, T}
     # filter out any NaN's or Inf's in the input
     keep = isfinite.(F)
     F = F[keep]
