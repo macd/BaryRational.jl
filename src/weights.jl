@@ -21,19 +21,19 @@ many applications d = 3 or 4 works well.
 But note, if you do have a regularly spaced grid, it is much better to call
 the floater_weights(n, order)
 """
-function floater_weights(x::Array{T, 1}, d=0) where {T}
+function floater_weights(x::Vector{T}; d=0) where {T <: AbstractFloat}
     n = length(x)
     d > n && error("Mixing coefficient must be less than node set size")
-    w = zeros(eltype(x), n)
+    w = zeros(T, n)
     @inbounds for k in 1:n
-        ws = 0.0
+        ws = zero(T)
         for i in max(1, k-d):min(n-d, k)
-            lwp = 0.0
+            lwp = zero(T)
             for j in i:min(n, i+d)
                 j == k && continue
                 lwp += log(abs(x[k] - x[j]))
             end
-            ws += 1.0 / exp(lwp)
+            ws += one(T) / exp(lwp)
         end
         w[k] = k % 2 == 0 ? ws : -ws
     end
@@ -44,12 +44,12 @@ end
 # worry about the actual grid size, since these weights are intended
 # for use in the barycentric (2nd kind) interpolation formula.
 # This is from the last equation (unnumbered) in Section 4 of the FH paper
-function floater_weights(n::Int, d=0)
-    w = Vector{Float64}(undef, n)
+function floater_weights(n::Int, ::Type{T}=Float64; d=0) where {T <: AbstractFloat}
+    w = Vector{T}(undef, n)
     @inbounds for k in 1:n
-        s = 0.0
+        s = zero(T)
         for i in max(1, k-d):min(n-d, k)
-            s += binomial(d, k-i)
+            s += T(binomial(d, k-i))
         end
         w[k] = (k-d) % 2 == 0 ? s : -s
     end
@@ -57,8 +57,8 @@ function floater_weights(n::Int, d=0)
 end
 
 # Recognize a step range and handle it efficiently
-function floater_weights(x::T, d=0) where {T <:StepRangeLen}
-    return floater_weights(length(x), d)
+function floater_weights(x::T; d=0) where {T <: StepRangeLen}
+    return floater_weights(length(x), d=d)
 end
 
 
@@ -66,31 +66,23 @@ end
 
   A shifted sin is used to make sure the points are symmetric
 """
-function chebpts(n)
+function chebpts(n, ::Type{T}=Float64) where {T <: AbstractFloat}
     m = n - 1
-    x = sinpi.([-m:2:m;] ./ 2m)
+    x = sinpi.(T.([-m:2:m;]) ./ T(2m))
     return x
-end
-
-function chebwts(n)
-    w = ones(n)
-    w[2:2:end] .= -1.0
-    w[1] *= 0.5
-    w[end] *= 0.5
-    return w
 end
 
 
 # This is faster.  The exp(sum(log.(abs.(...))) version is ~30X slower do n = 10000
 """The weights for Barycentric Lagrange interpolation given the x grid of evaluations"""
-function lagrange_weights(x::Vector{T}) where {T}
+function lagrange_weights(x::Vector{T}) where {T <: AbstractFloat}
     n = length(x)
     w = ones(T, n)
     t = copy(w)
     @inbounds for i in eachindex(x)
         t .= x[i] .- x
-        t[i] = one(eltype(x))
-        w[i] = one(eltype(x)) / prod(t)
+        t[i] = T(1)
+        w[i] = T(1) / prod(t)
         # Here is the "safe" version
         # w[i] = one(eltype(x)) / exp(sum(log.(abs.(t))))
         # neg = count(t .< zero(eltype(x))) % 2 == 1

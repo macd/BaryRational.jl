@@ -5,6 +5,7 @@ using Random
 
 include("test_aaa.jl")
 include("test_fh.jl")
+include("test_bary.jl")
 
 @testset "BaryRational.jl" begin
     @testset "aaa_rational" begin
@@ -28,5 +29,9 @@ include("test_fh.jl")
         @test test_fh_runge()
         @test test_abs_x()
         @test test_fh_deriv()
+    end
+    @testset "Barycentric interpolation on the Chebyshev points" begin
+        @test test_bary_airy()
+        @test test_bary_airy(BigFloat, tol=BigFloat(1//10^39))
     end
 end

@@ -18,5 +18,5 @@ function deriv(a::T, z) where T <: BRInterp
         end
         return - s / a.w[i]
     end
-    error("could not calculate derivative")
+    error("Could not calculate derivative")
 end

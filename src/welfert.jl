@@ -1,5 +1,6 @@
 using Printf
 
+# Someday I'll get back to this and make it work
 """
 initializes x, d, dp arrays
     input:            n problem size

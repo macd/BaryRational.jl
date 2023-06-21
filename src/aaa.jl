@@ -9,7 +9,11 @@ struct AAAapprox{T <: AbstractArray} <: BRInterp
     errvec::T
 end
 
+# In this version zz can be a scalar or a vector
 (a::AAAapprox)(zz) = reval(zz, a.x, a.f, a.w)
+
+# In this version zz is only ever a scalar
+#(a::AAAapprox)(zz) = bary(zz, a)
 
 # Handle function inputs as well
 function aaa(Z::AbstractArray{T,1}, F::S;  tol=1e-13, mmax=100, verbose=false, clean=true) where {T, S<:Function}
@@ -30,14 +34,30 @@ end
          z, f, w = vectors of support pts, function values, weights
          errvec = vector of errors at each step
 
- NOTE: changes from matlab version:
+ Note 1: Changes from matlab version:
          switched order of Z and F in function signature
          added verbose and clean boolean flags
-         pol, res, zer = vectors of poles, residues, zeros are now only calculated on demand
-         by calling prz(z::AAAapprox)
+         pol, res, zer = vectors of poles, residues, zeros are now only 
+         calculated on demand by calling prz(z::AAAapprox)
+
+ Note 2: This does (more or less) work with BigFloats. Caveats: since prz
+         has not been made generic, you must set clean=false. Also, must
+         set tol to a tiny BigFloat value rather than use the defaults.
+
+    using BaryRational
+    xrat = [-1//1:1//100:1//1;];
+    xbig = BigFloat.(xrat);
+    fbig = sin.(xbig);
+    sf = aaa(xbig, fbig, verbose=true, clean=false, tol=BigFloat(1/10^40));
+
+    julia @v1.10> sin(BigFloat(-1//3))
+    -0.3271946967961522441733440852676206060643014068937597915900562770705763744817618
+
+    julia @v1.10> sf(BigFloat(-1//3))
+    -0.3271946967961522441733440852676206060643014068937597915900562770705763744817662
 """
 function aaa(Z::AbstractArray{T,1}, F::AbstractArray{S,1}; tol=1e-13, mmax=100,
-             verbose=false, clean=true) where {S, T}
+             verbose=false, clean=true, do_sort=true) where {S, T}
     # filter out any NaN's or Inf's in the input
     keep = isfinite.(F)
     F = F[keep]
@@ -97,6 +117,14 @@ function aaa(Z::AbstractArray{T,1}, F::AbstractArray{S,1}; tol=1e-13, mmax=100,
         errvec = [errvec; err]                # max error at sample points
         err <= reltol && break                # stop if converged
     end
+
+    # we must sort if we plan on using bary rather than reval
+    if do_sort
+        perm = sortperm(z)
+        z .= z[perm]
+        f .= f[perm]
+        w .= w[perm]
+    end
     r = AAAapprox(z, f, w, errvec)
 
     # remove Frois. doublets if desired.  We do this in place
@@ -105,10 +133,13 @@ function aaa(Z::AbstractArray{T,1}, F::AbstractArray{S,1}; tol=1e-13, mmax=100,
         ii = findall(abs.(res) .< 1e-13)  # find negligible residues
         length(ii) != 0 && cleanup!(r, pol, res, zer, Z, F)
     end
+    
     return r
 end
 
 
+# NB: So this is not (yet) set up to be generic. If trying to use aaa with
+# BigFloat's be sure to set clean=false.
 function prz(r::AAAapprox)
     z, f, w = r.x, r.f, r.w        
     m = length(w)
@@ -138,6 +169,9 @@ end
 #
 # julia @v1.10> @btime dya = bary.(xx, g);
 #   17.230 μs (6 allocations: 8.12 KiB)
+#
+# Also, this version allocates like crazy. Maybe set the default to bary?
+#
 function reval(zz, z, f, w)
     # evaluate r at zz
     zv = size(zz) == () ? [zz] : vec(zz)  

@@ -168,13 +168,13 @@ function test_aaa_abs_x(tol=1e-10)
     return true
 end
 
-function runge(x)
+function runge_a(x)
     return 1.0 /(1 + x^2)
 end
     
 
 function test_aaa_runge(tol=1e-10)
-    err = do_aaa_func(runge)
+    err = do_aaa_func(runge_a)
     if err > tol
         println("AAA test failed  error: ", err, "   tol: ", tol)
         return false

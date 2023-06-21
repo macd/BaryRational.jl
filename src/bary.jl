@@ -1,7 +1,7 @@
 # Is z within an isapprox of any x[i] ? (Only for use when we hit a NaN)
 # Assumes that x is sorted from lowest to highest, which is kind of an
 # imposition, but if not, then we are into linear search
-function nearby(z::T, x::Vector{T}) where {T}
+function nearby(z::T, x::Vector{T}) where {T <: AbstractFloat}
     top = lastindex(x)
     bot = firstindex(x)
     mid = div(top, 2)
@@ -34,7 +34,7 @@ evaluate f(z)
 - `x:Vector{Float64}`:  vector of eval locations of f (sorted)
 - `w:Vector{Float64}`:  weights for locations x
 """
-function bary(z::T, f::Vector{T}, x::Vector{T}, w::Vector{T}) where {T}
+function bary(z::T, f::Vector{T}, x::Vector{T}, w::Vector{T}) where {T <: AbstractFloat}
     # assert(length(f) == length(x) == length(w))
     num = zero(T)
     den = zero(T)
@@ -53,27 +53,25 @@ function bary(z::T, a::U) where {T, U <: BRInterp}
 end
 
 
-# when we know f at the chebyshev points (weights are +/- 1)
-# so that both x and w are implied. Overkill?
-function bary(z, f)
+# When we don't get weigts we assume that x are at the Chebyshev points
+# over the interval [x[begin], x[end]] and that w, the weights, are implied.
+function bary(z::T, f::Vector{T}, x::Vector{T}) where {T <: AbstractFloat}
     n = length(f)
-    x = chebpts(n)
     num = den = zero(z)
-    t = 1 / 2(z - x[1])
+    t = T(1) / (T(2)*(z - x[1]))
     num += t * f[1]
     den += t
-    sgn = -1
+    sgn = T(-1)
     @inbounds for j = 2:n-1
         t = sgn / (z - x[j])
-        num += t*f[j]
+        num += t * f[j]
         den += t
         sgn = -sgn
     end
-    t = sgn / 2(z - x[n])
+    t = sgn / (T(2) * (z - x[n]))
     num += t * f[n]
     den += t
     fz = num / den
     fz = isfinite(fz) ? fz : f[nearby(z, x)]
 end
-
 
