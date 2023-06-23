@@ -131,6 +131,36 @@ and then construct the Fun.  The following shows how.
 
 which yields an error norm of 3.0186087174306446e-14. Pretty nice.
 
+As a final example, you can directly use the bary(), the barycentric 
+interpolation formula, directly. In this case, it's really advised to use the
+Chebyshev points. Here is an example where we use the Float128 type from the
+Quadmath package:
+
+    using Quadmath
+    using BaryRational
+    using SpecialFunctions
+    T = Float128;
+    B = BigFloat;
+    num_points = 64;
+    # Test on the interval [-10.0, 0.0] where airyai is oscillatory
+    # and yet too small for asymptotic formulas to work.
+    # Create Chebyshev points and move to [-10.0, 0.0] interval
+    xx = T(5) * (chebpts(num_points, T) .- T(1));
+    # airyai does not work with Float128 but is OK with BigFloat
+    xb = B(5) * (chebpts(num_points, B) .- B(1));
+    fb = airyai.(xb);
+    f  = T.(fb);
+    # Random points for testing
+    xrat = rand(-10//1:1//100:0//1, 1000);
+    yb  = bary.(T.(xrat), (f,), (xx,));
+    ya  = airyai.(B.(xrat));
+    err = abs.(yb - ya);
+    println("maximum error: ", T(maximum(err)))
+
+    maximum error: 7.01335603900599828997590359277608027e-32
+
+Which is also a nice result.
+
 
 [1] [The AAA algorithm for rational approximation](http://arxiv.org/abs/1612.00337)
 
