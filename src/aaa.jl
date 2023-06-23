@@ -15,7 +15,7 @@ end
 # In this version zz is only ever a scalar
 #(a::AAAapprox)(zz) = bary(zz, a)
 
-# Handle function inputs as well
+# Handle function inputs as well.  Seems unnecessary, consider removing.
 function aaa(Z::AbstractArray{T,1}, F::S;  tol=1e-13, mmax=100, verbose=false, clean=true) where {T, S<:Function}
     aaa(Z, F.(Z), tol=tol, mmax=mmax, verbose=verbose, clean=clean)
 end
@@ -87,7 +87,8 @@ function aaa(Z::AbstractArray{T,1}, F::AbstractArray{S,1}; tol=1e-13, mmax=100,
     
     errvec = P[]
     R = fill(mean(F), size(F))
-    @inbounds for m = 1:mmax
+    m = 1
+    @inbounds for outer m in 1:mmax
         j = argmax(abs.(F .- R))               # select next support point
         push!(z, Z[j])
         push!(f, F[j])
@@ -114,20 +115,35 @@ function aaa(Z::AbstractArray{T,1}, F::AbstractArray{S,1}; tol=1e-13, mmax=100,
         
         err = norm(F - R, Inf)
         verbose && println("Iteration: ", m, "  err: ", err)
-        errvec = [errvec; err]                # max error at sample points
+        push!(errvec, err)                    # max error at sample point
         err <= reltol && break                # stop if converged
     end
 
-    # we must sort if we plan on using bary rather than reval
+    # If we've gone to max iters, then it is possible that the best approximation
+    # is at a smaller vector size. If so, truncate the approximation which will
+    # give us a better approximation that is faster to compute.
+    if m == mmax
+        verbose && println("Hit max iters. Truncating approximation.")
+        idx = argmin(errvec)
+        deleteat!(z, idx+1:mmax)
+        deleteat!(f, idx+1:mmax)
+        deleteat!(w, idx+1:mmax)
+        deleteat!(errvec, idx+1:mmax)
+    end
+
+    # We must sort if we plan on using bary rather than reval, _but_ this
+    # will not work when z is complex
     if do_sort
         perm = sortperm(z)
         z .= z[perm]
         f .= f[perm]
         w .= w[perm]
+        errvec .= errvec[perm]
     end
     r = AAAapprox(z, f, w, errvec)
 
-    # remove Frois. doublets if desired.  We do this in place
+    # Remove Froissart doublets if desired.  We do this in place, but must
+    # skip this step (for now, set clean=false) if we are using BigFloats
     if clean
         pol, res, zer = prz(r)            # poles, residues, and zeros
         ii = findall(abs.(res) .< 1e-13)  # find negligible residues
