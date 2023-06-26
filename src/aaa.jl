@@ -1,6 +1,6 @@
 # AAA algorithm from the paper "The AAA Alorithm for Rational Approximation"
 # by Y. Nakatsukasa, O. Sete, and L.N. Trefethen, SIAM Journal on Scientific Computing
-# 2018 
+# 2018
 
 struct AAAapprox{T <: AbstractArray} <: BRInterp
     x::T
@@ -56,8 +56,8 @@ end
     julia @v1.10> sf(BigFloat(-1//3))
     -0.3271946967961522441733440852676206060643014068937597915900562770705763744817662
 """
-function aaa(Z::AbstractArray{T,1}, F::AbstractArray{S,1}; tol=1e-13, mmax=100,
-             verbose=false, clean=true, do_sort=false) where {S, T}
+function aaa(Z::AbstractArray{U,1}, F::AbstractArray{S,1}; tol=1e-13, mmax=100,
+             verbose=false, clean=true, do_sort=false) where {S, U}
     # filter out any NaN's or Inf's in the input
     keep = isfinite.(F)
     F = F[keep]
@@ -71,57 +71,70 @@ function aaa(Z::AbstractArray{T,1}, F::AbstractArray{S,1}; tol=1e-13, mmax=100,
     M = length(Z)                    # number of sample points
     mmax = min(M, mmax)              # max number of support points
     
-    reltol = tol * norm(F, Inf)
-    verbose && println("\nreltol: ", reltol)
+    abstol = tol * norm(F, Inf)
+    verbose && println("\nabstol: ", abstol)
 
-    SF = spdiagm(M, M, 0 => F)       # left scaling matrix
-    
     F, Z = promote(F, Z)
-    P = promote_type(S, T)
+    T = promote_type(S, U)
     
     J = [1:M;]
-    z = P[]                          # support points
-    f = P[]                          # function values at support points
-    C = P[]
-    w = P[]
-    
-    errvec = P[]
+    z = T[]                          # support points
+    f = T[]                          # function values at support points
+    w = T[]                          # the weights
+    A  = Matrix{T}(undef, M, 0)
+    C  = Matrix{T}(undef, M, 0)
+
+    errvec = T[]
     R = fill(mean(F), size(F))
     m = 1
     @inbounds for outer m in 1:mmax
         j = argmax(abs.(F .- R))               # select next support point
         push!(z, Z[j])
         push!(f, F[j])
-        deleteat!(J, findfirst(isequal(j), J))   # update index vector
+        deleteat!(J, findfirst(isequal(j), J)) # update index vector
 
         # next column of Cauchy matrix
-        C = isempty(C) ? reshape((1 ./ (Z .- Z[j])), (M,1)) : [C (1 ./ (Z .- Z[j]))]
+        C = hcat(C, T(1) ./ (Z .- Z[j]))
 
-        Sf = diagm(f)                         # right scaling matrix
-        A = SF * C - C * Sf                   # Loewner matrix
+        # Loewner matrix
+        A = hcat(A, (F .- f[end]) .* C[:, end])
 
-        # There are times when we need the full decomposition here. We could
-        # just always set full=true, but that slows down the test suite by
-        # almost 3X
-        mv, nv = size(A[J, :])
-        G = svd(A[J, :], full=(mv < nv))
-        
-        w = G.V[:, m]
-        
-        N = C * (w .* f)                      # numerator 
-        D = C * w
+        # Compute weights:
+        if length(J) >= m                      # The usual tall-skinny case
+            G = svd(A[J, :])                   # Reduced SVD (the default)
+            s = G.S
+            mm = findall(==(minimum(s)), s)    # Treat case of multiple min sing val
+            nm = length(mm)
+            w = G.V[:, mm] * (ones(T, nm) ./ sqrt(nm)) # Aim for non-sparse wt vector
+        elseif length(J) >= 1
+            V = nullspace(A[J, :])             # Fewer rows than columns
+            nm = size(V, 2)                    
+            w = V * ones(T, nm) ./ sqrt(nm)   # Aim for non-sparse wt vector
+        else
+            w = ones(T, m) ./ sqrt(m)         # No rows at all (needed for Octave)
+        end
+
+        # Don't use the zero weights when calculating the approximation at the
+        # support points
+        i0 = findall(!=(T(0)), w)
+        N = C[:, i0] * (w[i0] .* f[i0])       # numerator 
+        D = C[:, i0] *  w[i0]
+
+        # Use the rational approximation at the remaining non support 
+        # points so we can measure the error.
         R .= F
-        R[J] .= N[J] ./ D[J]                  # rational approximation
+        R[J] .= N[J] ./ D[J]                  
         
         err = norm(F - R, Inf)
         verbose && println("Iteration: ", m, "  err: ", err)
         push!(errvec, err)                    # max error at sample point
-        err <= reltol && break                # stop if converged
+        err <= abstol && break                # stop if converged
     end
 
-    # If we've gone to max iters, then it is possible that the best approximation
-    # is at a smaller vector size. If so, truncate the approximation which will
-    # give us a better approximation that is faster to compute.
+    # If we've gone to max iters, then it is possible that the best 
+    # approximation is at a smaller vector size. If so, truncate the
+    # approximation which will give us a better approximation that is
+    # faster to compute.
     if m == mmax
         verbose && println("Hit max iters. Truncating approximation.")
         idx = argmin(errvec)
@@ -131,6 +144,13 @@ function aaa(Z::AbstractArray{T,1}, F::AbstractArray{S,1}; tol=1e-13, mmax=100,
         deleteat!(errvec, idx+1:mmax)
     end
 
+    # Remove the support points with zero weight.
+    izero = findall(==(T(0)), w)
+    deleteat!(z, izero)
+    deleteat!(f, izero)
+    deleteat!(w, izero)
+    deleteat!(errvec, izero)
+    
     # We must sort if we plan on using bary rather than reval, _but_ this
     # will not work when z is complex
     if do_sort
@@ -157,19 +177,20 @@ end
 # NB: So this is not (yet) set up to be generic. If trying to use aaa with
 # BigFloat's be sure to set clean=false.
 function prz(r::AAAapprox)
-    z, f, w = r.x, r.f, r.w        
+    z, f, w = r.x, r.f, r.w
+    T = eltype(z)
     m = length(w)
-    B = diagm(ones(m+1))
-    B[1, 1] = 0.0
-    E = [0.0  transpose(w); ones(m) diagm(z)]
+    B = diagm(ones(T, m+1))
+    B[1, 1] = T(0)
+    E = [T(0)  transpose(w); ones(T, m) diagm(z)]
     pol, _ = eigen(E, B)
     pol = pol[isfinite.(pol)] 
-    dz = 1e-5 * exp.(2im*pi*[1:4;]/4)
+    dz = T(1//100000) * exp.(2im*pi*[1:4;]/4)
     
     # residues
     res = r(pol .+ transpose(dz)) * dz ./ 4 
         
-    E = [0 transpose(w .* f); ones(m) diagm(z)]
+    E = [0 transpose(w .* f); ones(T, m) diagm(z)]
     zer, _ = eigen(E, B)
     zer = zer[isfinite.(zer)]
     pol, res, zer
@@ -197,7 +218,9 @@ function reval(zz, z, f, w)
     
     ii = findall(isnan.(r))               # find values NaN = Inf/Inf if any
     @inbounds for j in ii
-        if !isnan(zv[j]) && ((v = findfirst(==(zv[j]), z)) !== nothing)
+        # Wow, linear search , but only if a NaN happens
+        v = findfirst(==(zv[j]), z)
+        if !isnan(zv[j]) && (v !== nothing)
             r[j] = f[v]  # force interpolation there
         end
     end
@@ -206,6 +229,7 @@ end
 
 
 # Only calculate the updated z, f, and w
+# FIXME: Change the hardcoded tolerance in this function
 function cleanup!(r, pol, res, zer, Z, F)
     z, f, w = r.x, r.f, r.w
     m = length(z)
