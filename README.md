@@ -172,6 +172,65 @@ maximum error: 7.01335603900599828997590359277608027e-32
 
 Which is also a nice result.
 
+### Poles 
+
+The function `aaa`, unlike in Chebfun, does not return the poles, zeros, and residues along with the approximant. To extract these, you need to use the `prz` function.
+
+As an example, let us consider approximating $f(z) = 1/J_0(z)$ from random data in a rectangle in the complex plane, reproducing Figure 6.8 of [[1]](#ref1).
+
+```julia
+using BaryRational
+using StableRNGs
+using CairoMakie
+using Bessels
+
+## Setup the data
+seed = 7174444532485057091
+rng = StableRNG(seed)
+n = 2000
+x = 10rand(rng, n)
+y = 2rand(rng, n) .- 1
+z = complex.(x, y)
+f = z -> inv(besselj0(z))
+fz = f.(z)
+
+## Get the approximant and extract the poles and residues 
+r = aaa(z, fz)
+pol, res, zer = prz(r)
+
+## Plot the error contours together with the data and computed poles
+gridx = LinRange(-5, 15, 250)
+gridy = LinRange(-3, 3, 250)
+err = [abs(f(complex(x, y)) - r(complex(x, y))) for x in gridx, y in gridy]
+fig = Figure()
+ax = Axis(fig[1, 1], xlabel=L"x", ylabel=L"y", width=600, height=300)
+contour!(ax, gridx, gridy, err, levels=10.0 .^ (-12:-1))
+scatter!(ax, real(z), imag(z), color=:grey, markersize=4)
+scatter!(ax, real(pol), imag(pol), color=:black, markersize=13)
+xlims!(ax, -5, 15)
+ylims!(ax, -3, 3)
+resize_to_layout!(fig)
+fig
+```
+
+![Error contours and poles for the reciprocal Bessel function](images/bessel_errs.png)
+
+We see that the computed poles of the solution, shown as black dots, are all real, even though we imposed no symmetry in our initial data - an impressive feature of the AAA algorithm. Moreover, these black dots are almost exactly equal to the true poles of $f$, i.e. the zeros of $J_0(z)$, again showing the power of the algorithm. Some of the poles do have some imaginary parts, though:
+
+```julia
+fig = Figure()
+ax = Axis(fig[1, 1], xlabel=L"x", ylabel=L"y", width=600, height=300)
+sc = scatter!(ax, real(pol), imag(pol), markersize=13, color=abs.(res))
+lines!(ax, [0, 10, 10, 0, 0], [-1, -1, 1, 1, -1], linewidth=3, color=:black)
+Colorbar(fig[1, 2], sc, label="|res|")
+resize_to_layout!(fig)
+fig
+```
+
+![All poles for the reciprocal Bessel function](images/bessel_poles.png)
+
+Those that are away from the real line are far from the original domain of the data, though, or have small residues, as shown.
+
 ## References
 
 <a name="ref1"></a>[1] [The AAA algorithm for rational approximation](http://arxiv.org/abs/1612.00337)

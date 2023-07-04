@@ -16,46 +16,55 @@ end
 #(a::AAAapprox)(zz) = bary(zz, a)
 
 # Handle function inputs as well.  Seems unnecessary, consider removing.
-function aaa(Z::AbstractVector{T}, F::S;  tol=1e-13, mmax=100, verbose=false,
-             clean=true) where {T, S<:Function}
-    aaa(Z, F.(Z), tol=tol, mmax=mmax, verbose=verbose, clean=clean)
+function aaa(Z::AbstractArray{T,1}, F::S;  tol=1e-13, mmax=100, verbose=false, clean=true, do_sort=false) where {T, S<:Function}
+    aaa(Z, F.(Z), tol=tol, mmax=mmax, verbose=verbose, clean=clean, do_sort=do_sort)
 end
 
-"""aaa  rational approximation of data F on set Z
-        r = aaa(Z, F; tol, mmax, verbose, clean)
+"""
+    aaa(Z, F; tol=1e-13, mmax=100, verbose=false, clean=true, do_sort=false)
 
- Input: Z = vector of sample points
-        F = vector of data values at the points in Z
-        tol = relative tolerance tol, set to 1e-13 if omitted
-        mmax: max type is (mmax-1, mmax-1), set to 100 if omitted
-        verbose: print info while calculating default = false
-        clean: detect and remove Froissart doublets default = true
+Computes a rational approximant of the data F on the set Z using the AAA algorithm.
 
- Output: r = an AAA approximant as a callable struct with fields
-         z, f, w = vectors of support pts, function values, weights
-         errvec = vector of errors at each step
+# Arguments 
+- `Z`: The vector of sample points.
+- `F`: The vector of data values corresponding to the points in `Z`. `F` can also be a function, in which case `F.(Z)` is used.
 
- Note 1: Changes from matlab version:
-         switched order of Z and F in function signature
-         added verbose and clean boolean flags
-         pol, res, zer = vectors of poles, residues, zeros are now only 
-         calculated on demand by calling prz(z::AAAapprox)
+# Keyword Arguments 
+- `tol=1e-13`: The relative tolerance.
+- `mmax=100`: Sets the maximum type of the rational approximant to `(mmax-1, mmax-1)`.
+- `verbose=false`: Prints info while calculating if `true`.
+- `clean=true`: Detects and remove Froissart doublets if `true`.
+- `do_sort=false`: Sorts the support points if `true`. Does not work if the sample data are complex. 
 
- Note 2: This does (more or less) work with BigFloats. Caveats: since prz
-         has not been made generic, you must set clean=false. Also, must
-         set tol to a tiny BigFloat value rather than use the defaults.
+# Output 
+The returned value is an approximant `r::AAAapprox` that could be called e.g. as `r(z)`, returning the approximant at `z`.
+See the docs for examples.
 
-    using BaryRational
-    xrat = [-1//1:1//100:1//1;];
-    xbig = BigFloat.(xrat);
-    fbig = sin.(xbig);
-    sf = aaa(xbig, fbig, verbose=true, clean=false, tol=BigFloat(1/10^40));
+!!! note "Changes from MATLAB version"
 
-    julia @v1.10> sin(BigFloat(-1//3))
+    - The order of `Z` and `F` are changed in the function signature.
+    - The `verbose` and `clean` boolean flags are added.
+    - The vectors of poles, residues, and zeros are now only calculated on demand by calling `prz(r::AAAapprox)`.
+
+!!! note "BigFloats"
+
+    This does (more or less) work with `BigFloat`s. 
+    Caveats: since `prz` has not yet been made generic, you must set `clean=false`. 
+    Also, you set `tol` to a tiny `BigFloat` value rather than use the defaults. For example:
+
+    ```julia-repl 
+    julia> using BaryRational
+    julia> xrat = -(1//1):(1//100):(1//1);
+    julia> xbig = BigFloat.(xrat);
+    julia> fbig = sin.(xbig);
+    julia> sf = aaa(xbig, fbig, clean = false, tol = BigFloat(1//10^40));
+    julia> sin(BigFloat(-1//3))
     -0.3271946967961522441733440852676206060643014068937597915900562770705763744817618
-
-    julia @v1.10> sf(BigFloat(-1//3))
+    
+    julia> sf(BigFloat(-1//3))
     -0.3271946967961522441733440852676206060643014068937597915900562770705763744817662
+    ```
+
 """
 function aaa(Z::AbstractVector{U}, F::AbstractVector{S}; tol=1e-13, mmax=100,
              verbose=false, clean=true, do_sort=false) where {S, U}
@@ -177,6 +186,16 @@ end
 
 # NB: So this is not (yet) set up to be generic. If trying to use aaa with
 # BigFloat's be sure to set clean=false.
+"""
+    prz(r::AAAapprox)
+
+Return the poles, residues, and zeros of the AAA approximation r. 
+
+!!! warning 
+
+    If you are trying to use `aaa` with `BigFloat`s, make sure you have called 
+    `aaa` with `clean=false` as, currently, `prz` is not generic.
+"""
 function prz(r::AAAapprox)
     z, f, w = r.x, r.f, r.w
     T = eltype(z)
