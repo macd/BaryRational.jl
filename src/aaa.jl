@@ -16,7 +16,8 @@ end
 #(a::AAAapprox)(zz) = bary(zz, a)
 
 # Handle function inputs as well.  Seems unnecessary, consider removing.
-function aaa(Z::AbstractArray{T,1}, F::S;  tol=1e-13, mmax=100, verbose=false, clean=true) where {T, S<:Function}
+function aaa(Z::AbstractVector{T}, F::S;  tol=1e-13, mmax=100, verbose=false,
+             clean=true) where {T, S<:Function}
     aaa(Z, F.(Z), tol=tol, mmax=mmax, verbose=verbose, clean=clean)
 end
 
@@ -56,7 +57,7 @@ end
     julia @v1.10> sf(BigFloat(-1//3))
     -0.3271946967961522441733440852676206060643014068937597915900562770705763744817662
 """
-function aaa(Z::AbstractArray{U,1}, F::AbstractArray{S,1}; tol=1e-13, mmax=100,
+function aaa(Z::AbstractVector{U}, F::AbstractVector{S}; tol=1e-13, mmax=100,
              verbose=false, clean=true, do_sort=false) where {S, U}
     # filter out any NaN's or Inf's in the input
     keep = isfinite.(F)

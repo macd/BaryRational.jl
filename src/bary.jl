@@ -34,7 +34,8 @@ evaluate f(z)
 - `x:Vector{Float64}`:  vector of eval locations of f (sorted)
 - `w:Vector{Float64}`:  weights for locations x
 """
-function bary(z::T, f::Vector{T}, x::Vector{T}, w::Vector{T}) where {T <: AbstractFloat}
+function bary(z::T, f::AbstractVector{T}, x::AbstractVector{T},
+              w::AbstractVector{T}) where {T}
     # assert(length(f) == length(x) == length(w))
     num = zero(T)
     den = zero(T)
@@ -55,7 +56,7 @@ end
 
 # When we don't get weigts we assume that x are at the Chebyshev points
 # over the interval [x[begin], x[end]] and that w, the weights, are implied.
-function bary(z::T, f::Vector{T}, x::Vector{T}) where {T <: AbstractFloat}
+function bary(z::T, f::AbstractVector{T}, x::AbstractVector{T}) where {T}
     n = length(f)
     num = den = zero(z)
     t = T(1) / (T(2)*(z - x[1]))
