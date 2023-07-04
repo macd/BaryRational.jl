@@ -66,7 +66,7 @@ See the docs for examples.
     ```
 
 """
-function aaa(Z::AbstractArray{U,1}, F::AbstractArray{S,1}; tol=1e-13, mmax=100,
+function aaa(Z::AbstractVector{U}, F::AbstractVector{S}; tol=1e-13, mmax=100,
              verbose=false, clean=true, do_sort=false) where {S, U}
     # filter out any NaN's or Inf's in the input
     keep = isfinite.(F)
