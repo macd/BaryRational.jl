@@ -43,7 +43,7 @@ function test_aaa_gamma_poles()
 end
 
 
-function test_aaa_exp(tol=1e-8)
+function test_aaa_exp(;tol=1e4*eps(1.0))
     Z = range(-1, 1, length=1000)
     F = exp.(Z)
     r = aaa(Z, F)
