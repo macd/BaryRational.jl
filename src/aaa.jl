@@ -139,7 +139,7 @@ function aaa(Z::AbstractVector{U}, F::AbstractVector{S}; tol=1e-13, mmax=100,
     # faster to compute.
     if m == mmax
         verbose && println("Hit max iters. Truncating approximation.")
-        idx = argmin(errvec)
+        idx = argmin(i -> real(errvec[i]), eachindex(errvec))
         for v in (z, f, w, errvec)
             deleteat!(v, idx+1:mmax)
         end
