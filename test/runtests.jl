@@ -24,6 +24,7 @@ include("test_bary.jl")
         @test test_aaa_full_svd()
         @test test_aaa_deriv()
         @test test_aaa_deriv2()
+        @test test_aaa_maxiters()
     end
     @testset "FH_rational_interpolation" begin
         @test test_fh_runge()

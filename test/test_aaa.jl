@@ -18,7 +18,7 @@ function test_aaa_spiral()
     # can that be?  As a hack, I filter it out here, but should investigate
     # further
     filter!( x -> abs(imag(x)) < 0.01, spol)
-    
+
     p1 = isapprox(abs(spol[1]),  1.0, atol=1e-8)
     p2 = isapprox(abs(spol[2]),  1.0, atol=1e-8)
     p3 = isapprox(abs(spol[3]),  3.0, atol=5e-3)
@@ -60,7 +60,7 @@ function test_aaa_length(tol=1e-8)
     m1 = length(r.x)
     r = aaa(Z, F, mmax=m1-1)
     t1 = length(r.x) == m1 - 1
-    
+
     r = aaa(Z, F, tol=1e-3)
     t2 = length(r.x) < m1
     return all((t1, t2))
@@ -110,7 +110,7 @@ function test_aaa_residuals(tol=1e-8)
     pol, res, zer = prz(r)
     ii = findfirst(abs.(pol) .< 1e-8)
     t1 = abs(res[ii] - 1.0) < 1e-10
-        
+
     r = aaa(X, (1+1im) .* gamma.(X))
     pol, res, zer = prz(r)
     ii = findfirst(abs.(pol .- (-1)) .< 1e-8)
@@ -129,7 +129,7 @@ function test_aaa_case2(tol=1e-8)
     r = aaa(Z, F)
     t1 = norm(F .- r(Z), Inf) < tol
     t2 = r(Inf) == -Inf
-    
+
     return all((t1, t2))
 end
 
@@ -171,7 +171,7 @@ end
 function runge_a(x)
     return 1.0 /(1 + x^2)
 end
-    
+
 
 function test_aaa_runge(tol=1e-10)
     err = do_aaa_func(runge_a)
@@ -218,4 +218,22 @@ function test_aaa_deriv2()
     idx = 94:106
     dya[idx] .= dyf[idx] .= 0.0
     return  norm(dya - dyf, Inf) < 1e-9
+end
+
+# We approximate a function with a branch cut which requires a lot of poles/iterations since
+# AAA clusters poles near branch points. See PR #8
+function test_aaa_maxiters()
+    f(a) = (q = sqrt(Complex(a^2 - 1)); (abs(q-a) <= 1 ? 1 : -1) * 2pi * inv(q))
+    f(x, η) = f(cos(x) + im*η)
+    ntrain = 10^4
+    x = 2pi*range(0, step=1//ntrain, length=ntrain)
+    z = cis.(x)
+    eta = 1e-3
+    fz = -im .* f.(x, eta) ./ z
+    try
+        aaa(z, fz, clean=true, verbose=false)
+        return true
+    catch e
+        return !(e isa MethodError)
+    end
 end
