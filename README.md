@@ -22,7 +22,7 @@ julia> f = x -> sin(x) + 2exp(x)
 julia> fh = FHInterp(x, f.(x), order=8, grid=true)
 julia> fh(1.23)
 7.78493669233287
-julia> deriv(fh, 1.23)
+julia> deriv(fh, 1.23)  # use deriv(fh, 1.23, m=2) for higher order derivatives
 7.176696799673523
 ```
     
@@ -43,9 +43,11 @@ julia> a(1.23)
 7.784947874510929
 julia> deriv(a, 1.23)
 7.17669679970369
+julia> deriv(a, 1.23, m=3)
+6.508221345462802
 ```
     
-and finally the exact result
+and finally the exact results
 
 ```julia
 julia> f(1.23)
@@ -53,6 +55,9 @@ julia> f(1.23)
 julia> df = x -> cos(x) + 2exp(x)
 julia> df(1.23)
 7.1766967997038495
+julia> df3 = x -> -cos(x) + 2exp(x)
+julia> df3(1.23)
+6.508221345454844
 ```
     
 The AAA algorithm is adaptive in the subset of support points that it
