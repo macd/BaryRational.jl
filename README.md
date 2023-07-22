@@ -59,7 +59,13 @@ julia> df3 = x -> -cos(x) + 2exp(x)
 julia> df3(1.23)
 6.508221345454844
 ```
-    
+
+NB: ForwardDiff does not play well with BaryRational because when we interpolate at
+a support point, we just return the initial function value there. ForwardDiff recognizes
+this as a constant and returns derivative of a constant, which is zero. There is 
+special handling in the algorithm of [3] for calculating the derivatives at support points
+and that is implemented here.
+
 The AAA algorithm is adaptive in the subset of support points that it
 chooses to use.
 

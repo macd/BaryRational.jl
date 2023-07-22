@@ -97,3 +97,14 @@ function test_runge_derivs(tol=1e-10)
     
     return err1 < tol && err2 < tol && err3 < 1e-5
 end
+
+function test_truncation()
+    xbig = BigFloat.([-1//1:1//100:1//1;])
+    fbig = sin.(xbig);
+    # The min error appears at m=25, so this will test the truncation
+    sf = aaa(xbig, fbig, mmax=30, clean=false, tol=BigFloat(1/10^40));
+    # This also tests at support points
+    xtest = BigFloat.([-1//1:1//1000:1//1;])
+    error = norm(sin.(xtest) - sf.(xtest), Inf)
+    return error < BigFloat(1//10^30)
+end

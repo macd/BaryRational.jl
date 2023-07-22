@@ -40,5 +40,6 @@ include("test_deriv.jl")
         @test test_aaa_airy_prime()
         @test test_2nd_derivative()
         @test test_runge_derivs()
+        @test test_truncation()
     end
 end
