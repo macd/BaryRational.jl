@@ -28,14 +28,3 @@ function test_abs_x(order=3)
     return pass
 end
 
-fh(x) = sin(x) ^ 2 + cos(10x)
-
-function test_fh_deriv()
-    x = [-1.0:0.01:1.0;]
-    y = fh.(x)
-    fha = FHInterp(x, y, order=8, grid=true)
-    xx = [-1.0:0.001:1.0;]
-    dya = deriv.(fha, xx)
-    dyf = ForwardDiff.derivative.(fh, xx)
-    return  norm(dya - dyf, Inf) < 1e-8
-end

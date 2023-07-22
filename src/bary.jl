@@ -29,10 +29,10 @@ end
 evaluate f(z)
 
 # Arguments
-- `z::Float64`:         the point at which to evaluate f
-- `f::Vector{Float64}`: vector of function values at x
-- `x:Vector{Float64}`:  vector of eval locations of f (sorted)
-- `w:Vector{Float64}`:  weights for locations x
+- `z::T`:          the point at which to evaluate f
+- `f::Vector{T}`:  vector of function values at x
+- `x::Vector{T}`:  vector of eval locations of f (sorted)
+- `w::Vector{T}`:  weights for locations x
 """
 function bary(z::T, f::AbstractVector{T}, x::AbstractVector{T},
               w::AbstractVector{T}) where {T}

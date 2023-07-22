@@ -9,10 +9,10 @@ using SparseArrays
 
 abstract type BRInterp <: Function end
 
-struct FHInterp{T <: AbstractFloat} <: BRInterp
-    x::Vector{T}
-    f::Vector{T}
-    w::Vector{T}
+struct FHInterp{T <: AbstractArray} <: BRInterp
+    x::T
+    f::T
+    w::T
     order::Int
 end
 
