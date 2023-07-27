@@ -16,12 +16,14 @@ struct FHInterp{T <: AbstractArray} <: BRInterp
     order::Int
 end
 
+cplxord(t) = (real(t), imag(t))
+
 include("weights.jl")
 include("bary.jl")
 include("aaa.jl")
 include("derivatives.jl")
 
-function FHInterp(x::AbstractVector{T}, f::Vector{T}; order::Int=0, grid=false) where {T <: AbstractFloat}
+function FHInterp(x::AbstractVector{T}, f::AbstractVector{T}; order::Int=0, grid=false) where {T}
     if grid
         FHInterp(collect(x), f, floater_weights(length(x), T, d=order), order)
     else

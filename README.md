@@ -60,14 +60,18 @@ julia> df3(1.23)
 6.508221345454844
 ```
 
-NB: ForwardDiff does not play well with BaryRational because when we interpolate at
+The AAA algorithm is adaptive in the subset of support points that it
+chooses to use.
+
+**NOTE:** The aaa approximant is designed to take a scalar or vector input without
+broadcasting. It will still give the correct results if you inadvertently 
+use a.(xx), but it will be much slower than using a(xx).
+
+**NOTE:**  ForwardDiff does not play well with BaryRational because when we interpolate at
 a support point, we just return the initial function value there. ForwardDiff recognizes
 this as a constant and returns derivative of a constant, which is zero. There is 
 special handling in the algorithm of [3] for calculating the derivatives at support points
 and that is implemented here.
-
-The AAA algorithm is adaptive in the subset of support points that it
-chooses to use.
 
 ## Examples
 
@@ -175,10 +179,10 @@ f  = T.(fb);
 xrat = rand(-10//1:1//100:0//1, 1000);
 yb  = bary.(T.(xrat), (f,), (xx,));
 ya  = airyai.(B.(xrat));
-err = abs.(yb - ya);
-println("maximum error: ", T(maximum(err)))
+err = norm(yb - ya, Inf);
+println("maximum error: ", T(err))
 
-maximum error: 7.01335603900599828997590359277608027e-32
+maximum error: 7.04169792675801867421523999050212504e-32
 ```
 
 Which is also a nice result.

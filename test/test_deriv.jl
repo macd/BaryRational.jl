@@ -1,11 +1,13 @@
 using ForwardDiff
 using ForwardDiff: derivative
+using Random
 
 function test_aaa_deriv()
     f(x) = sin(x) ^ 2 + cos(10x)
     x = [-1.0:0.01:1.0;]
     y = f.(x)
     g = aaa(x, y)
+    Random.seed!(1137)
     xx = -1.0 .+ 2rand(100)
     dya = deriv.(g, xx)
     dyf = ForwardDiff.derivative.(f, xx)
@@ -48,6 +50,7 @@ function test_aaa_airy_prime(T=Float64; tol=T(1//10^10))
     a = aaa(xx, f)
 
     # random test points
+    Random.seed!(1137)
     xr = rand(T(-10):T(1//100):T(0), 1000)
     ybp = deriv.(a, xr)
 
@@ -88,6 +91,7 @@ function test_runge_derivs(tol=1e-10)
     yfd2(x) = derivative(yfd, x)
     yfd3(x) = derivative(yfd2, x)
     
+    Random.seed!(1137)
     xr = 5.0 * (2rand(100) .- 1.0)
     yr = f.(xr)
 
@@ -98,13 +102,13 @@ function test_runge_derivs(tol=1e-10)
     return err1 < tol && err2 < tol && err3 < 1e-5
 end
 
-function test_truncation()
-    xbig = BigFloat.([-1//1:1//100:1//1;])
-    fbig = sin.(xbig);
-    # The min error appears at m=25, so this will test the truncation
-    sf = aaa(xbig, fbig, mmax=30, clean=false, tol=BigFloat(1/10^40));
-    # This also tests at support points
-    xtest = BigFloat.([-1//1:1//1000:1//1;])
-    error = norm(sin.(xtest) - sf.(xtest), Inf)
-    return error < BigFloat(1//10^30)
+# Not very accurate, but it seems to work.
+function test_aaa_complex_deriv()
+    x = [-1.0:0.01:1.0;]
+    z = complex.(x, x)
+    f = sin.(z)
+    g = aaa(z, f)
+    xx = [-1.0:0.001:1.0;]
+    zz = complex.(xx, xx)
+    return norm(cos.(zz) - deriv.(g, zz), Inf) < 1e-4
 end

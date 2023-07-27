@@ -1,14 +1,15 @@
 # Is z within an isapprox of any x[i] ? (Only for use when we hit a NaN)
 # Assumes that x is sorted from lowest to highest, which is kind of an
 # imposition, but if not, then we are into linear search
-function nearby(z::T, x::Vector{T}) where {T <: AbstractFloat}
+function nearby(z::T, x::AbstractVector{T}) where {T}
+    ord = T <: Complex ? cplxord : identity
     top = lastindex(x)
     bot = firstindex(x)
     mid = div(top, 2)
     while bot < mid < top
-        if z > x[mid]
+        if ord(z) > ord(x[mid])
             bot = mid
-        elseif z < x[mid]
+        elseif ord(z) < ord(x[mid])
             top = mid
         else
             return mid

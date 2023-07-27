@@ -120,12 +120,11 @@ function test_aaa_residuals(tol=1e-8)
 end
 
 
-# The following two tests do not pass
-
+# The following test does not pass
 function test_aaa_case2(tol=1e-8)
     # Case |Z| = 2: needs special treatment.
-    Z = [0, 1]
-    F = [1, 2]
+    Z = [0., 1]
+    F = [1., 2]
     r = aaa(Z, F)
     t1 = norm(F .- r(Z), Inf) < tol
     t2 = r(Inf) == -Inf
@@ -133,16 +132,15 @@ function test_aaa_case2(tol=1e-8)
     return all((t1, t2))
 end
 
-function test_aaa_scale_invar(tol=1e-8)
+function test_aaa_scale_invar()
     # Check for exact scale-invariance
-    Z = range(0.3, 1.5, length=100)
-    F = exp.(Z) ./ (1+1im)
-    r1 = aaa(Z, F)
-    r2 = aaa(Z, BigFloat(2)^311*F)
-    r3 = aaa(Z, BigFloat(2)^-311*F)
+    Z = range(BigFloat(3//10), BigFloat(15//10), length=100)
+    F = exp.(Z) ./ (BigFloat(1)+BigFloat(1)*im)
+    r1 = aaa(Z, F, clean=0)
+    r2 = aaa(Z, BigFloat(2)^311*F, clean=0)
+    r3 = aaa(Z, BigFloat(2)^-311*F, clean=0)
     t1 = r1(0.2im) == BigFloat(2)^-311*r2(0.2im)
     t2 = r1(1.4) == BigFloat(2)^311*r3(1.4)
-
     return all((t1, t2))
 end
 
@@ -184,17 +182,18 @@ end
 
 
 # This setup requires that full=true for the svd so this tests that logic
+# We also run both cleanup proceedures here.
 function test_aaa_full_svd()
     x = [-1.0:0.2:1.0;]
     y = cos.(x)
-    g = aaa(x, y)
+    g  = aaa(x, y, clean=1)
+    g2 = aaa(x, y, clean=2)
     return  isfinite(g(g.x[1])) &&  g.errvec[end] < 1e-14
 end
 
 
-
-# We approximate a function with a branch cut which requires a lot of poles/iterations since
-# AAA clusters poles near branch points. See PR #8
+# We approximate a function with a branch cut which requires a lot of
+# poles/iterations since AAA clusters poles near branch points. See PR #8
 function test_aaa_maxiters()
     f(a) = (q = sqrt(Complex(a^2 - 1)); (abs(q-a) <= 1 ? 1 : -1) * 2pi * inv(q))
     f(x, η) = f(cos(x) + im*η)
@@ -204,9 +203,31 @@ function test_aaa_maxiters()
     eta = 1e-3
     fz = -im .* f.(x, eta) ./ z
     try
-        aaa(z, fz, clean=true, verbose=false)
+        aaa(z, fz, clean=1, verbose=false)
+        aaa(z, fz, clean=2, verbose=false)
         return true
     catch e
         return !(e isa MethodError)
     end
+end
+
+function test_aaa_truncation()
+    xbig = BigFloat.([-1//1:1//100:1//1;])
+    fbig = sin.(xbig);
+    # The min error appears at m=25, so this will test the truncation
+    sf = aaa(xbig, fbig, mmax=30, clean=0, tol=BigFloat(1/10^40));
+    # This also tests at support points
+    xtest = BigFloat.([-1//1:1//1000:1//1;])
+    error = norm(sin.(xtest) - sf.(xtest), Inf)
+    return error < BigFloat(1//10^30)
+end
+
+function test_aaa_complex()
+    x = [-1.0:0.1:1.0;]
+    z = complex.(x,x)
+    f = sin.(z)
+    g = aaa(z, f)
+    xx = [-1.0:0.001:1.0;]
+    zz = complex.(xx, xx)
+    return norm(sin.(zz) - g(zz), Inf) < 1e-12
 end

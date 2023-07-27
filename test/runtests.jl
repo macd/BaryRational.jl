@@ -21,13 +21,16 @@ include("test_deriv.jl")
         @test test_aaa_naninp()
         @test test_aaa_residuals()
         #@test test_aaa_case2()
-        #@test test_aaa_scale_invar()
-        @test test_aaa_full_svd()
-        @test test_aaa_maxiters()
+        @test test_aaa_scale_invar()
+        @test test_aaa_full_svd()       # this has one doublet
+        @test test_aaa_maxiters()       # 2 doublets
+        @test test_aaa_truncation()
+        @test test_aaa_complex()
     end
     @testset "FH_rational_interpolation" begin
         @test test_fh_runge()
         @test test_abs_x()
+        @test test_fh_complex()
     end
     @testset "Barycentric interpolation on the Chebyshev points" begin
         @test test_bary_airy()
@@ -40,6 +43,6 @@ include("test_deriv.jl")
         @test test_aaa_airy_prime()
         @test test_2nd_derivative()
         @test test_runge_derivs()
-        @test test_truncation()
+        @test test_aaa_complex_deriv()
     end
 end

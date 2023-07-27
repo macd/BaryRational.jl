@@ -28,3 +28,13 @@ function test_abs_x(order=3)
     return pass
 end
 
+function test_fh_complex()
+    x = [-1.0:0.1:1.0;]
+    z = complex.(x,x)
+    f = sin.(z)
+    fh = FHInterp(z, f, order=12)
+    xx = [-1.0:0.001:1.0;]
+    zz = complex.(xx, xx)
+    return norm(sin.(zz) - fh.(zz), Inf) < 1e-12
+end
+

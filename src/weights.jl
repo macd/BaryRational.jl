@@ -21,7 +21,7 @@ many applications d = 3 or 4 works well.
 But note, if you do have a regularly spaced grid, it is much better to call
 the floater_weights(n, order)
 """
-function floater_weights(x::Vector{T}; d=0) where {T <: AbstractFloat}
+function floater_weights(x::AbstractVector{T}; d=0) where {T}
     n = length(x)
     d > n && error("Mixing coefficient must be less than node set size")
     w = zeros(T, n)
@@ -44,7 +44,7 @@ end
 # worry about the actual grid size, since these weights are intended
 # for use in the barycentric (2nd kind) interpolation formula.
 # This is from the last equation (unnumbered) in Section 4 of the FH paper
-function floater_weights(n::Int, ::Type{T}=Float64; d=0) where {T <: AbstractFloat}
+function floater_weights(n::Int, ::Type{T}=Float64; d=0) where {T}
     w = Vector{T}(undef, n)
     @inbounds for k in 1:n
         s = zero(T)
@@ -66,7 +66,7 @@ end
 
   A shifted sin is used to make sure the points are symmetric
 """
-function chebpts(n, ::Type{T}=Float64) where {T <: AbstractFloat}
+function chebpts(n, ::Type{T}=Float64) where {T}
     m = n - 1
     x = sinpi.(T.([-m:2:m;]) ./ T(2m))
     return x
@@ -75,7 +75,7 @@ end
 
 # This is faster.  The exp(sum(log.(abs.(...))) version is ~30X slower do n = 10000
 """The weights for Barycentric Lagrange interpolation given the x grid of evaluations"""
-function lagrange_weights(x::Vector{T}) where {T <: AbstractFloat}
+function lagrange_weights(x::AbstractVector{T}) where {T}
     n = length(x)
     w = ones(T, n)
     t = copy(w)
