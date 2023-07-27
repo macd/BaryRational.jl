@@ -98,7 +98,7 @@ function plt_err_abs_x()
         yy = abs.(xi)
         fa = aaa(xi, yy)
         fh = FHInterp(xi, yy, order=order, grid=true)
-        push!(aaa_err, maximum(abs.(fa.(xt) .- abs.(xt))))
+        push!(aaa_err, maximum(abs.(fa(xt) .- abs.(xt))))
         push!(fh_err, maximum(abs.(fh.(xt) .- abs.(xt))))
     end
     plot(log.(pts), log.(fh_err), ".-", label="FH Error")
@@ -145,7 +145,7 @@ n = 129
 pts = points(S, n);
 
 # construct the Fun using the aaa approximation on the Chebyshev points
-pn = Fun(S, ApproxFun.transform(S, faaa.(pts)));
+pn = Fun(S, ApproxFun.transform(S, faaa(pts)));
 
 # now compare it to the "native" fun
 x = Fun();
