@@ -2,10 +2,12 @@ module BaryRational
 export FHInterp, bary, chebpts, floater_weights, lagrange_weights
 export aaa, prz, deriv
 
-using LinearAlgebra
 using GenericLinearAlgebra
-using Statistics
+using GenericSchur
+using LinearAlgebra
+using Printf
 using SparseArrays
+using Statistics
 
 abstract type BRInterp <: Function end
 

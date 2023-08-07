@@ -12,6 +12,11 @@ include("test_deriv.jl")
     @testset "aaa_rational" begin
         @test test_aaa_gamma_poles()
         @test test_aaa_spiral()
+        # These can take some time
+        #@test test_big_aaa_spiral(verbose=true, clean=0) == false
+        #@test test_big_aaa_spiral(verbose=true, clean=1)
+        #@test test_big_aaa_spiral(verbose=true, clean=2)
+        #@test test_big_aaa_spiral(verbose=true, clean=3)
         @test test_aaa_exp()
         @test test_aaa_length()
         @test test_aaa_tan()

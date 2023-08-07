@@ -5,30 +5,56 @@ using ForwardDiff
 # for testing
 csort(x) = sort(x, lt = (x,y) -> abs(real(x)) < abs(real(y)))
 
-# OK, so these tolerances are not as good as those shown in the AAA paper
-function test_aaa_spiral()
-    zz = range(-0.5, complex(0.5, 0.15pi), length=100)
+function test_aaa_spiral(T=Float64, verbose=false)
+    zz = exp.(range(-0.5, complex(0.5, 15*pi), length=1000))
+
     yy = tan.(pi*zz/2)
-    f = aaa(zz, yy)
+    f = aaa(zz, yy, clean=false, verbose=verbose)
     pol, res, zer = prz(f)
     spol = csort(pol)
+    verbose && foreach(println, real(spol))
 
-    # somehow, running in the Pkg test environment, I'm getting a
-    # spurious pole at -1.46 -46.51im but not when I run locally.  How
-    # can that be?  As a hack, I filter it out here, but should investigate
-    # further
-    filter!( x -> abs(imag(x)) < 0.01, spol)
-
-    p1 = isapprox(abs(spol[1]),  1.0, atol=1e-8)
-    p2 = isapprox(abs(spol[2]),  1.0, atol=1e-8)
-    p3 = isapprox(abs(spol[3]),  3.0, atol=5e-3)
-    p4 = isapprox(abs(spol[4]),  3.0, atol=5e-3)
+    p1 = isapprox(abs(spol[1]),  1.0, atol=1e-14)
+    p2 = isapprox(abs(spol[2]),  1.0, atol=1e-14)
+    p3 = isapprox(abs(spol[3]),  3.0, atol=1e-6)
+    p4 = isapprox(abs(spol[4]),  3.0, atol=1e-6)
     return all((p1, p2, p3, p4))
 end
 
+# So this turns out to be a good test for the various cleaning proceedures.
+# It clean is turned off, we get spurious crap and the test will fail. For
+# the other three cleaning routines, this did find some bugs. We do need to go
+# to mmax=40 to see this. Can take a little bit of time.
+function test_big_aaa_spiral(;verbose=true, clean=1)
+    T = BigFloat
+    zz = exp.(range(T(-1//2), complex(T(1//2), T(15//1)*pi), length=1000))
+    yy = tan.(T(pi) *zz / T(2))
+    f = aaa(zz, yy, mmax=40, tol=BigFloat(-1), # negative value forces mmax iters
+            clean=clean, verbose=verbose)
+    pol, res, zer = prz(f)
+    spol = csort(pol)
+
+    verbose && foreach(println, real(spol))
+
+    p = falses(12)
+    # This is actually amazing to me.
+    ptols = [T(1//BigInt(10)^75), T(1//BigInt(10)^75),  # poles 1,-1
+             T(1//BigInt(10)^55), T(1//BigInt(10)^55),  # poles 3,-3
+             T(1//BigInt(10)^38), T(1//BigInt(10)^38),  # poles 5,-5
+             T(1//BigInt(10)^28), T(1//BigInt(10)^28),  # poles 7,-7
+             T(1//BigInt(10)^20), T(1//BigInt(10)^20),  # poles 9,-9
+             T(1//BigInt(10)^15), T(1//BigInt(10)^15)]  # poles 11,-11
+    for i in 1:2:12
+        p[i]   = isapprox(abs(spol[i]),    T(i), atol=ptols[i])
+        p[i+1] = isapprox(abs(spol[i+1]),  T(i), atol=ptols[i+1])
+    end
+    verbose && foreach(println, zip(1:length(p), p))
+    return all(p)
+end
+
+
 # we test the values of the first 4 located poles to the accuracy noted in
-# the AAA paper.  It is very likely that these values will make for brittle
-# testing.
+# the AAA paper.  These values can make for brittle testing.
 function test_aaa_gamma_poles()
     xx = range(-1.5, 1.5, length=100)
     yy = gamma.(xx)
@@ -136,9 +162,12 @@ function test_aaa_scale_invar()
     # Check for exact scale-invariance
     Z = range(BigFloat(3//10), BigFloat(15//10), length=100)
     F = exp.(Z) ./ (BigFloat(1)+BigFloat(1)*im)
-    r1 = aaa(Z, F, clean=0)
-    r2 = aaa(Z, BigFloat(2)^311*F, clean=0)
-    r3 = aaa(Z, BigFloat(2)^-311*F, clean=0)
+    # r1 = aaa(Z, F, clean=0)
+    # r2 = aaa(Z, BigFloat(2)^311*F, clean=0)
+    # r3 = aaa(Z, BigFloat(2)^-311*F, clean=0)
+    r1 = aaa(Z, F)
+    r2 = aaa(Z, BigFloat(2)^311*F)
+    r3 = aaa(Z, BigFloat(2)^-311*F)
     t1 = r1(0.2im) == BigFloat(2)^-311*r2(0.2im)
     t2 = r1(1.4) == BigFloat(2)^311*r3(1.4)
     return all((t1, t2))

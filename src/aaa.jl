@@ -186,7 +186,9 @@ function aaa(Z::AbstractVector{U}, F::AbstractVector{S}; tol=1e-13, mmax=100,
     if clean == 1
         cleanup!(r, Z, F; verbose=verbose)
     elseif clean == 2
-        cleanup2!(r, Z, F; verbose=verbose) 
+        r = cleanup2!(r, Z, F; verbose=verbose)
+    elseif clean == 3
+        old_cleanup!(r, Z, F; verbose=verbose)
     end
 
     return r
@@ -197,28 +199,26 @@ function prz(r::AAAapprox)
 end
 
 
-# Compute residues as quotient of analytic functions
-
-# NB: So this is not (yet) set up to be generic. If trying to use aaa with
-# BigFloat's be sure to set clean=false. (We need to be able to solve the
-# generalized eigenvalue equation in the desired type to get the poles and
-# zeros)
+# We now use the Schur decompostion so we can use GenericShur which means that
+# we can now use prz with BigFloat
 function prz(z, f, w)
     T = eltype(z)
     m = length(w)
     B = diagm(ones(T, m+1))
     B[1, 1] = T(0)
     E = [T(0)  transpose(w); ones(T, m) diagm(z)]
-    pol, _ = eigen(E, B)
-    pol = pol[isfinite.(pol)] 
+    sp = schur(E, B)
+    pol = sp.values[isfinite.(sp.values)]
 
+    # Compute residues as quotient of analytic functions
     N =   (T(1) ./ (pol .- transpose(z))) * (f .* w)
     D = -((T(1) ./ (pol .- transpose(z))) .^ 2) * w
     res = N ./ D
     
     E = [T(0) transpose(w .* f); ones(T, m) diagm(z)];
-    zer, _ = eigen(E, B)
-    zer = zer[isfinite.(zer)]
+    sz = schur(E, B)
+    zer = sz.values[isfinite.(sz.values)]
+
     pol, res, zer
 end
 
@@ -248,8 +248,9 @@ end
 # more or less match the Chebfun version.
 function cleanup!(r, Zp::AbstractVector{T}, Fp::AbstractVector{T};
                   verbose=false, cleanup_tol=1e-13) where {T}
-    z, f, w = r.x, r.f, r.w
+    z, f, w = copy(r.x), copy(r.f), copy(r.w)
     pol, res, zer = prz(z, f, w)
+
     # Don't modify the original input vectors
     Z = copy(Zp)
     F = copy(Fp)
@@ -288,7 +289,7 @@ function cleanup!(r, Zp::AbstractVector{T}, Fp::AbstractVector{T};
         deleteat!(Z, idx)
     end
     m = length(z)
-    M = length(M)
+    M = length(Z)
     SF = spdiagm(M, M, 0 => F)
     Sf = diagm(f)
     C = 1 ./ (Z .- transpose(z))
@@ -302,8 +303,49 @@ function cleanup!(r, Zp::AbstractVector{T}, Fp::AbstractVector{T};
         r.f .= f
         r.w .= w
     end
-
     return r
+end
+
+# The old ways are sometimes the good ways... This was coded from the original
+# AAA paper.
+# Only calculate the updated z, f, and w
+function old_cleanup!(r, Zp::AbstractVector{T}, Fp::AbstractVector{T};
+                  verbose=false, cleanup_tol=1e-13) where {T}
+    z, f, w = r.x, r.f, r.w
+    pol, res, zer = prz(z, f, w)
+    Z = copy(Zp)
+    F = copy(Fp)
+    m = length(z)
+    M = length(Z)
+    ii = findall(abs.(res) .< 1e-13)  # find negligible residues
+    ni = length(ii)
+    ni == 0 && return
+    println("$ni Froissart doublets. Number of residues = ", length(res))
+
+    # For each spurious pole find and remove closest support point:
+    @inbounds for j = 1:ni
+        azp = abs.(z .- pol[ii[j]] )
+        jj = findall(isequal(minimum(azp)), azp)
+        deleteat!(z, jj)    # remove nearest support points
+        deleteat!(f, jj)
+    end
+
+    # Remove support points z from sample set:
+    @inbounds for j = 1:length(z)
+        jj = findall(isequal(z[j]), Z)
+        deleteat!(F, jj)
+        deleteat!(Z, jj)
+    end
+    m = m - length(ii)
+    SF = spdiagm(M-m, M-m, 0 => F)
+    Sf = diagm(f)
+    C = 1 ./ (Z .- transpose(z))
+    A = SF*C - C*Sf
+    G = svd(A)
+    ww = G.V[:, m]
+    deleteat!(r.w, 1:(length(r.w) - length(ww)))
+    r.w .= ww
+    return nothing
 end
 
 
@@ -324,7 +366,7 @@ function cleanup2!(r, Zp::AbstractVector{T}, Fp::AbstractVector{T};
         Z = copy(Zp)
         F = copy(Fp)
         ii = Int[]
-        for jj in 1:length(pol)
+        @inbounds for jj in 1:length(pol)
             dz = isempty(zer) ? FT(10^100) : minimum(abs.(zer .- pol[jj]))
             dS = abs.(Z .- pol[jj])
             ds = minimum(dS)
@@ -399,7 +441,7 @@ function cleanup2!(r, Zp::AbstractVector{T}, Fp::AbstractVector{T};
     
         # Solve least-squares problem to obtain weights:
         G = svd(A)
-        w = G.V[:, m]
+        @views w = G.V[:, m]
     
         # Compute poles, residues and zeros for next round.
         pol, res, zer = prz(z, f, w)

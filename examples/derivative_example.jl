@@ -15,9 +15,9 @@ yy = f.(xx);
 
 g = aaa(xx, yy, do_sort=true, clean=1)
 
-@show sw_deriv = deriv.(g, 0.5)
+@show sw_deriv = deriv(g, 0.5)
 @show df(0.5)
-@show sw_deriv2 = deriv.(g, 0.5, m=2)
+@show sw_deriv2 = deriv(g, 0.5, m=2)
 @show df2(0.5)
 
 gp1(x) = derivative(g,   x);
