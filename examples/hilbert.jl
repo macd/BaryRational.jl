@@ -2,7 +2,7 @@
 # So take warning. This is brittle software. Change the sample points or
 # even change the ordering of the sample points and results can
 # drastically change. If you are trying to use BigFloat, you will be in
-# for an adventure.
+# for an adventure (although some of it actually works OK)
 
 using BaryRational
 using Base.MathConstants
@@ -20,37 +20,55 @@ function logspace(n, m, l; T=Float64)
     Complex{T}(10) .^ Complex{T}.(range(n//1, m//1, length=l))
 end
 
+hvec(x) = typeof(x) <: AbstractArray ? vec(x) : [x]
+
 # Well, should we get rid of poles below or above the real axis? Depends on
-# who you ask. If asking Born & Wolf, we need analytic and regular in the
-# lower half plane.  If asking Morse & Feshbach, we need analytic and 
-# regular in the upper half plane. We go for lower half here because that
+# who you ask. If asking Born & Wolf, we need holomorphic in the
+# lower half plane.  If asking Morse & Feshbach, we need holomorphic 
+# in the upper half plane. We go for lower half here because that
 # matches the sign in the Weideman paper, but it looks like Costa and Trefethen
-# go with the upper half plane. Remarkably, except for a sign change, the
+# go with the upper half plane. Except for a sign change, the
 # results are very consistent when choosing either the upper or lower half plane.
-# Also, not thrilled with the api for v,f that requires a vector.
-function hilbert(u::Function; n=10, l=300, T=Float64, tol=T(1//10^13), clean=0,
-                 verbose=false, mmax=100)
-    X = logspace(-n, n, l; T=T)
-    # If you did 'X = [-reverse(X); X]' instead, you get much worse results on
-    # the Weideman testcases.
-    X = [X; -X]     
-    g = aaa(X, u.(X), clean=clean, tol=tol, verbose=verbose, mmax=mmax)
+# Also, we follow the DSP.jl convention and only return the complex analytic signal,
+# but here we return a function rather than the values of the Hilbert transform on
+# the sample grid
+function hilbert(X::AbstractVector{T}, Y::AbstractVector{T};
+                 tol=T(1//10^13), clean=0, verbose=false, mmax=100) where {T}
+    g = aaa(X, Y, clean=clean, tol=tol, verbose=verbose, mmax=mmax)
     pol, _, _ = prz(g)
+
+    # Remove poles in the lower half plane
     deleteat!(pol, imag(pol) .< T(0))
     verbose && println("Final pol length: ", length(pol))
+
     d = minimum(abs.(X .- transpose(pol)), dims=1)
     A = d ./ (X .- transpose(pol))
     A = [real(A) -imag(A)]
-    c = reshape(A \ u.(X), :, 2) * Complex{T}.([1, 1im])
-    # f is the complex analytic signal
-    f = x -> reshape((d ./ (x[:] .- transpose(pol))) * c, size(x))
-    # and its real part is the Hilbert transform of the real signal.
-    v = x -> imag(f(x))                                  
-    return v, f
+    c = reshape(A \ Y, :, 2) * Complex{T}.([1, 1im])
+
+    # f is a function that returns the complex analytic signal. It takes either
+    # a scalar or vector, but (at present) always returns a vector.
+    f = x -> reshape((d ./ (hvec(x) .- transpose(pol))) * c, size(x))
+
+    return f
+end
+
+
+# If we are given a function to transform, follow C&T:
+# "the sampling grid has been taken as 300 points exponentially spaced from 10^−10
+# to 10^10 and their negatives, so 600 points all together."  Here we make these
+# choices congifurable but defaulted to the values in the paper.
+function hilbert(u::Function; n=10, l=300, T=Float64, tol=T(1//10^13), clean=0,
+                 verbose=false, mmax=100)
+    X = logspace(-n, n, l; T=T)
+    X = [X; -X]   # This is what Costa and Trefethen do.
+    #X = [-X; X]  # This is OK as well.
+    #X = [-reverse(X); X]  # This is not. Much poorer results on Weideman examples
+    return hilbert(X, u.(X), tol=tol, clean=clean, verbose=verbose, mmax=mmax)
 end
 
 # The functions and their Hilbert transforms are from "Computing the Hilbert 
-# Transform on the Real Line" by J.A.C. Weideman
+# Transform on the Real Line" by J.A.C. Weideman, Mathematics of Computation (1995)
 wfuncs = [x -> 1 / (1 + x^2),
           x -> 1 / (1 + x^4),
           x -> sin(x) / (1 + x^2),
@@ -73,15 +91,18 @@ whilb = [
 ]
 
 function main(;T=Float64, clean=0, mmax=100, verbose=false, tol=T(1//10^13))
+    f = nothing
     for i in eachindex(wfuncs)
-        v, f = hilbert(wfuncs[i]; T=T, verbose=verbose, mmax=mmax, tol=tol, clean=clean)
-        err = abs(v([T(2)])[1] - whilb[i].(T(2)))
-        println(v([T(2)])[1], "   ", whilb[i](T(2)), "   ", err)
+        f = hilbert(wfuncs[i]; T=T, verbose=verbose, mmax=mmax, tol=tol, clean=clean)
+        ht(x) = imag(f(x))[1]
+        # These are the values and errors at x = 2.0 to replicate Costa & Trefethen
+        err = abs(ht(T(2)) - whilb[i].(T(2)))
+        println(ht(T(2)), "   ", whilb[i](T(2)), "   ", err)
     end
-    v, f = hilbert(wfuncs[end], clean=clean)
-    xx = range(T(-5), T(5), length=1000)
-    yy = (v(xx) - whilb[end].(xx))
-    plot(xx, yy)
-    nothing
+
+    # Plot the error of the Hilbert transform of the last test function
+    xx = [-T(5):T(1//100):T(5);]
+    yy = (imag(f(xx)) - whilb[end].(xx))
+    plot(xx, yy);
 end
 
