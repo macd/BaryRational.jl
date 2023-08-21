@@ -260,3 +260,15 @@ function test_aaa_complex()
     zz = complex.(xx, xx)
     return norm(sin.(zz) - g(zz), Inf) < 1e-12
 end
+
+function test_aaa_float32()
+    n = 100
+    z = range(-Float32(1), Float32(1), length=n)
+    f = 1 ./ (z .^ 2 .+ 1)
+    try
+        aaa(z, f, tol=sqrt(eps(one(Float32))))
+        return true
+    catch
+        return false
+    end
+end
