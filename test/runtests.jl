@@ -31,6 +31,7 @@ include("test_deriv.jl")
         @test test_aaa_maxiters()       # 2 doublets
         @test test_aaa_truncation()
         @test test_aaa_complex()
+        @test test_aaa_float32()
     end
     @testset "FH_rational_interpolation" begin
         @test test_fh_runge()
