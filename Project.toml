@@ -1,7 +1,7 @@
 name = "BaryRational"
 uuid = "91aaffc3-5777-4842-85b7-5d3d5d6a3494"
 authors = ["Don MacMillen <don@macmillen.net> and contributors"]
-version = "1.0.0"
+version = "1.1.0"
 
 [deps]
 GenericLinearAlgebra = "14197337-ba66-59df-a3e3-ca00e7dcff7a"
