@@ -2,10 +2,11 @@
 # So take warning. This is brittle software. Change the sample points or
 # even change the ordering of the sample points and results can
 # drastically change. If you are trying to use BigFloat, you will be in
-# for an adventure (although some of it actually works OK)
+# for an adventure (although for a couple of examples, it actually works)
 
 using BaryRational
 using Base.MathConstants
+using Printf
 using PyPlot
 using SpecialFunctions
 using ArbNumerics
@@ -32,12 +33,13 @@ hvec(x) = typeof(x) <: AbstractArray ? vec(x) : [x]
 # Also, we follow the DSP.jl convention and only return the complex analytic signal,
 # but here we return a function rather than the values of the Hilbert transform on
 # the sample grid
-function hilbert(X::AbstractVector{T}, Y::AbstractVector{T};
-                 tol=T(1//10^13), clean=0, verbose=false, mmax=100) where {T}
+function hilbert(X, Y; T=Float64, tol=T(1//10^13), clean=0, verbose=false, mmax=100)
     g = aaa(X, Y, clean=clean, tol=tol, verbose=verbose, mmax=mmax)
     pol, _, _ = prz(g)
 
     # Remove poles in the lower half plane
+    verbose && println("Initial pol length: ", length(pol))
+    verbose && println("Poles: ", pol)
     deleteat!(pol, imag(pol) .< T(0))
     verbose && println("Final pol length: ", length(pol))
 
@@ -58,13 +60,17 @@ end
 # "the sampling grid has been taken as 300 points exponentially spaced from 10^−10
 # to 10^10 and their negatives, so 600 points all together."  Here we make these
 # choices congifurable but defaulted to the values in the paper.
+#
+# Note that for some functions, this strategy can be very wrong, for example
+# f = x-> cos(x)*cos(9x) is bad. So maybe this strategy is only good for f -> 0.0
+# as x -> +/- ∞ ? It seems all the test functions have that property.
 function hilbert(u::Function; n=10, l=300, T=Float64, tol=T(1//10^13), clean=0,
                  verbose=false, mmax=100)
     X = logspace(-n, n, l; T=T)
     X = [X; -X]   # This is what Costa and Trefethen do.
     #X = [-X; X]  # This is OK as well.
     #X = [-reverse(X); X]  # This is not. Much poorer results on Weideman examples
-    return hilbert(X, u.(X), tol=tol, clean=clean, verbose=verbose, mmax=mmax)
+    return hilbert(X, u.(X), T=T, tol=tol, clean=clean, verbose=verbose, mmax=mmax)
 end
 
 # The functions and their Hilbert transforms are from "Computing the Hilbert 
@@ -80,29 +86,35 @@ wfuncs = [x -> 1 / (1 + x^2),
 
 # So dawson does not have a BigFloat or a Complex{BigFloat} version and
 # digamma does not have Complex{BigFloat} version (it has a BigFloat though)
+# 
 whilb = [
     y -> -y /(1 + y^2),
     y -> -y*(1+y^2)/(sqrt(2)*(1+y^4)),
     y -> (cos(y) - 1/e) / (1 + y^2),
     y -> (cos(y) - exp(-1/sqrt(2))*cos(1/sqrt(2)) - exp(-1/sqrt(2))*sin(1/sqrt(2))*y^2) / (1 + y^4),
     y -> -2 * dawson(y) / sqrt(pi),
-    y -> tanh(y) + (im / pi) * (digamma(0.25 + y*im/(2pi)) - digamma(0.25 - y*im/(2pi))),
+    y -> tanh(y) + (im / pi) * (digamma(1//4 + y*im/(2pi)) - digamma(1//4 - y*im/(2pi))),
     y -> - (sign(y)/pi)*(exp(abs(y))*expint(abs(y)) + exp(-abs(y))*expinti(abs(y)))
 ]
 
 function main(;T=Float64, clean=0, mmax=100, verbose=false, tol=T(1//10^13))
     f = nothing
-    for i in eachindex(wfuncs)
-        f = hilbert(wfuncs[i]; T=T, verbose=verbose, mmax=mmax, tol=tol, clean=clean)
+    # skip the problematic examples for other precisions (most of them, actually)
+    wf = T != Float64 ? wfuncs[1:2] : wfuncs
+    hf = T != Float64 ? whilb[1:2]  : whilb
+    println("      Calculated                Exact              Error")
+    for i in eachindex(wf)
+        f = hilbert(wf[i]; T=T, verbose=verbose, mmax=mmax, tol=tol, clean=clean)
         ht(x) = imag(f(x))[1]
         # These are the values and errors at x = 2.0 to replicate Costa & Trefethen
-        err = abs(ht(T(2)) - whilb[i].(T(2)))
-        println(ht(T(2)), "   ", whilb[i](T(2)), "   ", err)
+        err = abs(ht(T(2)) - hf[i].(T(2)))
+        @printf "%2.15e  %2.15e  %2.5e\n"  ht(T(2)) real(hf[i](T(2))) err
     end
 
     # Plot the error of the Hilbert transform of the last test function
     xx = [-T(5):T(1//100):T(5);]
     yy = (imag(f(xx)) - whilb[end].(xx))
-    plot(xx, yy);
+    plot(xx, yy)
+    nothing
 end
 
