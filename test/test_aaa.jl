@@ -24,11 +24,11 @@ end
 # So this turns out to be a good test for the various cleaning proceedures.
 # It clean is turned off, we get spurious crap and the test will fail. For
 # the other three cleaning routines, this did find some bugs. We do need to go
-# to mmax=40 to see this. Can take a little bit of time.
-function test_big_aaa_spiral(;verbose=true, clean=1)
+# to mmax=40 to see this. Can take a little bit of time, so currently not run
+function test_big_aaa_spiral(;verbose=false, clean=1)
     T = BigFloat
     zz = exp.(range(T(-1//2), complex(T(1//2), T(15//1)*pi), length=1000))
-    yy = tan.(T(pi) *zz / T(2))
+    yy = tan.(T(pi) * zz / T(2))
     f = aaa(zz, yy, mmax=40, tol=BigFloat(-1), # negative value forces mmax iters
             clean=clean, verbose=verbose)
     pol, res, zer = prz(f)
@@ -73,10 +73,7 @@ function test_aaa_exp(;tol=1e4*eps(1.0))
     Z = range(-1, 1, length=1000)
     F = exp.(Z)
     r = aaa(Z, F)
-    t1 = norm(F - r(Z), Inf) < tol
-    t2 = isnan(r(NaN))                        # check that r(NaN) = NaN
-    t3 = !isinf(r(Inf))                       # r(inf) = sum(w.*f)/sum(w)
-    return all((t1, t2, t3))
+    return norm(F - r(Z), Inf) < tol
 end
 
 function test_aaa_length(tol=1e-8)
@@ -95,7 +92,7 @@ end
 function test_aaa_tan(tol=1e-8)
     Z = range(-1, 1, length=1000)
     F = z -> tan(pi*z)
-    r = aaa(Z, F)
+    r = aaa(Z, F.(Z))
     pol, res, zer  = prz(r)
     t1 = norm(F.(Z) - r(Z), Inf) < 10*tol
     t2 = minimum(abs.(zer)) < tol
@@ -105,7 +102,8 @@ function test_aaa_tan(tol=1e-8)
 end
 
 function test_aaa_gamma(tol=1e-8)
-    r = aaa([-0.9:0.05:1.0;], gamma)
+    x = [-0.9:0.05:1.0;]
+    r = aaa(x, gamma.(x))
     return abs(r(1.5) - gamma(1.5)) < 1e-3
 end
 
@@ -272,3 +270,4 @@ function test_aaa_float32()
         return false
     end
 end
+

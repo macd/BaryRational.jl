@@ -30,13 +30,14 @@ end
 evaluate f(z)
 
 # Arguments
-- `z::T`:          the point at which to evaluate f
-- `f::Vector{T}`:  vector of function values at x
-- `x::Vector{T}`:  vector of eval locations of f (sorted)
-- `w::Vector{T}`:  weights for locations x
+- z::Z                 : the point at which to evaluate f
+- f::AbstractVector{F} : vector of function values at x
+- x::AbstractVector{X} : vector of eval locations of f (sorted)
+- w::AbstractVector{W} : weights for locations x
 """
-function bary(z::T, f::AbstractVector{T}, x::AbstractVector{T},
-              w::AbstractVector{T}) where {T}
+function bary(z::Z, f::AbstractVector{F}, x::AbstractVector{X},
+              w::AbstractVector{W}) where {Z, F, X, W}
+    T = promote_type(Z, F, X, W)
     # assert(length(f) == length(x) == length(w))
     num = zero(T)
     den = zero(T)
@@ -57,7 +58,7 @@ end
 
 # When we don't get weigts we assume that x are at the Chebyshev points
 # over the interval [x[begin], x[end]] and that w, the weights, are implied.
-function bary(z::T, f::AbstractVector{T}, x::AbstractVector{T}) where {T}
+function bary(z, f::AbstractVector{T}, x) where {T}
     n = length(f)
     num = den = zero(z)
     t = T(1) / (T(2)*(z - x[1]))

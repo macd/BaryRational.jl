@@ -3,27 +3,35 @@
 # Computing, 2018
 using Printf
 
-struct AAAapprox{T <: AbstractArray} <: BRInterp
+# so x can be real while f and w are complex
+struct AAAapprox{T <: AbstractArray, W <: AbstractArray} <: BRInterp
     x::T
-    f::T
-    w::T
-    errvec::T
+    f::W
+    w::W
+    errvec   # Interesting, but consider removing?
+end
+
+# NB: we don't sort errvec because that is just a history of the errors per
+#     iteration of the algorithm
+function Base.sort!(a::AAAapprox)
+    ord = eltype(a.x) <: Complex ? cplxord : identity
+    perm = sortperm(a.x, by=ord)
+    permute!.((a.x, a.f, a.w), (perm,))
 end
 
 # In this version zz can be a scalar or a vector. BUT: do not make the mistake
 # of broadcasting (ie a.(zz)) when zz is a vector. Although it gives correct
-# results, it is much slower than just a(zz)
-(a::AAAapprox)(zz) = reval(zz, a.x, a.f, a.w)
+# results, it is much slower than just a(zz). We should really use bary rather
+# than reval, but the tests are set up for this...
+#(a::AAAapprox)(zz) = reval(zz, a.x, a.f, a.w)
 
 # In this version zz is only ever a scalar, which means we must broadcast over
-# the argument if it is a vector.
-#(a::AAAapprox)(zz) = bary(zz, a)
+# the argument if it is a vector, BUT it looks to be much faster than reval.
+# However, the tests are set up to use the reval version, and defering that
+# work until later
+(a::AAAapprox)(zz) = bary(zz, a)
+(a::AAAapprox)(zz::T) where {T <: AbstractVector} = bary.(zz, a)
 
-# Handle function inputs as well.  Seems unnecessary, consider removing.
-function aaa(Z::AbstractVector{T}, F::S;  tol=1e-13, mmax=100, verbose=false,
-             clean=true) where {T, S<:Function}
-    aaa(Z, F.(Z), tol=tol, mmax=mmax, verbose=verbose, clean=clean)
-end
 
 function compute_weights(m, J, A::S) where {T, S <: AbstractMatrix{T}}
     if length(J) >= m                      # The usual tall-skinny case
@@ -46,7 +54,7 @@ end
 
 
 """aaa  rational approximation of data F on set Z
-        r = aaa(Z, F; tol=1e-13, mmax=100, verbose=false, clean=true,
+        r = aaa(Z, F; tol=1e-13, mmax=150, verbose=false, clean=true,
         do_sort=false)
 
  Input: Z = vector of sample points
@@ -83,8 +91,8 @@ end
     julia @v1.10> sf(BigFloat(-1//3))
     -0.3271946967961522441733440852676206060643014068937597915900562770705763744817662
 """
-function aaa(Z::AbstractVector{U}, F::AbstractVector{S}; tol=1e-13, mmax=100,
-             verbose=false, clean=1, do_sort=false) where {S, U}
+function aaa(Z::AbstractVector{U}, F::AbstractVector{S}; tol=1e-13, mmax=150,
+             verbose=false, clean=1, do_sort=true) where {S, U}
     # filter out any NaN's or Inf's in the input
     keep = isfinite.(F)
     F = F[keep]
@@ -157,7 +165,7 @@ function aaa(Z::AbstractVector{U}, F::AbstractVector{S}; tol=1e-13, mmax=100,
         if idx != mmax # if min error is at mmax, do nothing
             verbose && println("Hit max iters. Truncating approximation at $idx.")
             J = deleteat!([1:M;], sort(jtrunc))
-            w = @views compute_weights(idx, J, A[:, 1:idx])
+            w = compute_weights(idx, J, @views(A[:, 1:idx]))
             for v in (z, f, errvec)
                 deleteat!(v, idx+1:mmax)
             end
@@ -170,18 +178,12 @@ function aaa(Z::AbstractVector{U}, F::AbstractVector{S}; tol=1e-13, mmax=100,
         deleteat!(v, izero)
     end
 
-    # We must sort if we plan on using bary rather than reval.
-    if do_sort
-        ord = eltype(z) <: Complex ? cplxord : identity
-        perm = sortperm(z, by=ord)
-        for v in (z, f, w, errvec)
-            permute!(v, perm)
-        end
-    end
     r = AAAapprox(z, f, w, errvec)
+    
+    # We must sort if we plan on using bary rather than reval.
+    do_sort && sort!(r)
 
-    # Remove Froissart doublets if desired.  We do this in place, but must
-    # skip this step (for now, set clean=0) if we are using BigFloats
+    # Remove Froissart doublets if desired.  We do this in place.
     # TODO: use clean_tol instead of 1e-13
     if clean == 1
         cleanup!(r, Z, F; verbose=verbose)
@@ -200,14 +202,14 @@ end
 
 
 # We now use the Schur decompostion so we can use GenericShur which means that
-# we can now use prz with BigFloat
+# we can now use prz with BigFloat,
 function prz(z, f, w)
     T = eltype(z)
     m = length(w)
     B = diagm(ones(T, m+1))
     B[1, 1] = T(0)
     E = [T(0)  transpose(w); ones(T, m) diagm(z)]
-    sp = schur(E, B)
+    sp = schur(Complex.(E), Complex.(B))
     pol = sp.values[isfinite.(sp.values)]
 
     # Compute residues as quotient of analytic functions
@@ -216,7 +218,7 @@ function prz(z, f, w)
     res = N ./ D
 
     E = [T(0) transpose(w .* f); ones(T, m) diagm(z)];
-    sz = schur(E, B)
+    sz = schur(Complex.(E), Complex.(B))
     zer = sz.values[isfinite.(sz.values)]
 
     pol, res, zer
@@ -307,8 +309,7 @@ function cleanup!(r, Zp::AbstractVector{T}, Fp::AbstractVector{T};
 end
 
 # The old ways are sometimes the good ways... This was coded from the original
-# AAA paper.
-# Only calculate the updated z, f, and w
+# AAA paper. Only calculate the updated z, f, and w
 function old_cleanup!(r, Zp::AbstractVector{T}, Fp::AbstractVector{T};
                   verbose=false, cleanup_tol=1e-13) where {T}
     z, f, w = r.x, r.f, r.w
@@ -455,4 +456,71 @@ function cleanup2!(r, Zp::AbstractVector{T}, Fp::AbstractVector{T};
         r.w .= w
     end
     return r
+end
+
+
+"""
+From ContinuumAAA
+Construct a rational approximation for `f` over the interval [-1,1].
+"""
+function aaa(f, ::Type{T}=Float64; mmax=150, tol=1000*eps(T),
+             do_sort=true) where {T <: AbstractFloat}
+    spnts = T.([-1, 1])                      # vector of support points
+    f0 = f.( [spnts; XS(spnts, 10)] )        # check for constant function...
+    err = std(f0)                            # ...or degree==0
+    if iszero(err) || mmax==0 || (abs(err/mean(f0)) <= tol)
+        return AAAapprox(spnts, [], [], [])
+    end 
+
+    best = nothing                           # track the best so far
+    err  = T[]
+    nbad = T[]
+    while true                               # MAIN AAA LOOP
+        m = length(spnts)
+        X = XS(spnts, max(3, 16-m))          # vector of new sample points
+        fX, fS = f.(X), f.(spnts)
+        C = [1/(x-s) for x in X, s in spnts]     # Cauchy matrix
+        A = [fx-fs for fx in fX, fs in fS] .* C  # Loewner matrix
+        _, _, V = svd(A)
+        w = V[:, end]                        # barycentric weights
+        R = (C * (w.*fS)) ./ (C * w)         # approximant at test points
+        push!(err, norm(fX - R, Inf))        # track max error
+        pol, _, _ = prz(spnts, fS, w) 
+        bad = @. (imag(pol) == 0) & (abs(pol) <= 1)    # flag bad poles
+        #bad = isapprox.(imag(pol), T(0)) .& (abs(pol) <= T(1)) 
+        push!(nbad, count(bad))              # track number of bad poles
+        fmax = max( norm(fS, Inf), norm(fX, Inf) )     # set scale of f
+        if isnothing(best) ||            
+            (!any(bad) && (last(err) < err[best.m-1]))
+            best = (; m, spnts, w)               # save new best result
+        end
+        is_low = (err[best.m-1]/fmax < 1e-2)
+        if (!any(bad) && (last(err)/fmax <= tol)) ||   # stop if converged
+            (m == mmax+1) ||                         # ...or at max degree
+            ((m-best.m >= 10) && is_low)     # ...or if stagnated
+            break
+        end
+        _, j = findmax(abs, fX - R)           # find next support point...
+        push!(spnts, X[j])                        # ...and include it
+    end
+
+    m, spnts, w = best
+    fS = f.(spnts)
+
+    r = AAAapprox(spnts, fS, w, err)
+    do_sort && sort!(r)
+
+    # This will do many more function calls for evaluating the error and is
+    # not really used here. Revisit if we need it for anything.
+    #xx = XS(spnts, 30)
+    #final_err = norm(f.(xx) - r(xx), Inf)
+    
+    return r
+end
+
+"Create sample points in [-1,1]"
+function XS(s::S, p) where {T, S <: AbstractVector{T}}
+    s = sort(s) 
+    d = T.(collect(1:p) // (p+1))     # fractional step sizes
+    return vec( s[1:end-1]' .+ d.*diff(s)' )
 end
