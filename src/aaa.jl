@@ -27,8 +27,7 @@ end
 
 # In this version zz is only ever a scalar, which means we must broadcast over
 # the argument if it is a vector, BUT it looks to be much faster than reval.
-# However, the tests are set up to use the reval version, and defering that
-# work until later
+# TODO: revisit
 (a::AAAapprox)(zz) = bary(zz, a)
 (a::AAAapprox)(zz::T) where {T <: AbstractVector} = bary.(zz, a)
 
@@ -458,69 +457,91 @@ function cleanup2!(r, Zp::AbstractVector{T}, Fp::AbstractVector{T};
     return r
 end
 
+# Borrowed from https://github.com/complexvariables/RationalFunctionApproximation.jl
 
-"""
-From ContinuumAAA
-Construct a rational approximation for `f` over the interval [-1,1].
-"""
-function aaa(f, ::Type{T}=Float64; mmax=150, tol=1000*eps(T),
-             do_sort=true) where {T <: AbstractFloat}
-    spnts = T.([-1, 1])                      # vector of support points
-    f0 = f.( [spnts; XS(spnts, 10)] )        # check for constant function...
-    err = std(f0)                            # ...or degree==0
-    if iszero(err) || mmax==0 || (abs(err/mean(f0)) <= tol)
-        return AAAapprox(spnts, [], [], [])
-    end 
+#####
+##### Adaptive AAA on [-1, 1] only
+#####
 
-    best = nothing                           # track the best so far
-    err  = T[]
-    nbad = T[]
-    while true                               # MAIN AAA LOOP
-        m = length(spnts)
-        X = XS(spnts, max(3, 16-m))          # vector of new sample points
-        fX, fS = f.(X), f.(spnts)
-        C = [1/(x-s) for x in X, s in spnts]     # Cauchy matrix
-        A = [fx-fs for fx in fX, fs in fS] .* C  # Loewner matrix
-        _, _, V = svd(A)
-        w = V[:, end]                        # barycentric weights
-        R = (C * (w.*fS)) ./ (C * w)         # approximant at test points
-        push!(err, norm(fX - R, Inf))        # track max error
-        pol, _, _ = prz(spnts, fS, w) 
-        bad = @. (imag(pol) == 0) & (abs(pol) <= 1)    # flag bad poles
-        #bad = isapprox.(imag(pol), T(0)) .& (abs(pol) <= T(1)) 
-        push!(nbad, count(bad))              # track number of bad poles
-        fmax = max( norm(fS, Inf), norm(fX, Inf) )     # set scale of f
-        if isnothing(best) ||            
-            (!any(bad) && (last(err) < err[best.m-1]))
-            best = (; m, spnts, w)               # save new best result
-        end
-        is_low = (err[best.m-1]/fmax < 1e-2)
-        if (!any(bad) && (last(err)/fmax <= tol)) ||   # stop if converged
-            (m == mmax+1) ||                         # ...or at max degree
-            ((m-best.m >= 10) && is_low)     # ...or if stagnated
-            break
-        end
-        _, j = findmax(abs, fX - R)           # find next support point...
-        push!(spnts, X[j])                        # ...and include it
-    end
-
-    m, spnts, w = best
-    fS = f.(spnts)
-
-    r = AAAapprox(spnts, fS, w, err)
-    do_sort && sort!(r)
-
-    # This will do many more function calls for evaluating the error and is
-    # not really used here. Revisit if we need it for anything.
-    #xx = XS(spnts, 30)
-    #final_err = norm(f.(xx) - r(xx), Inf)
-    
-    return r
+# refinement in parameter space
+function refine(t, N)
+    x = sort(t)
+    Δx = diff(x)
+    d = eltype(x).((1:N) / (N+1))
+    return vec( x[1:end-1] .+ (d' .* Δx) )
 end
 
-"Create sample points in [-1,1]"
-function XS(s::S, p) where {T, S <: AbstractVector{T}}
-    s = sort(s) 
-    d = T.(collect(1:p) // (p+1))     # fractional step sizes
-    return vec( s[1:end-1]' .+ d.*diff(s)' )
+function aaa(
+    f::Function, ::Type{T}=Float64;
+    mmax=150, tol=1000*eps(T),
+    refinement=3, lookahead=10, stats=false
+    ) where {T <: AbstractFloat}
+    CT = Complex{T}
+    # arrays for tracking convergence progress
+    err, nbad = T[], Int[]
+    nodes, vals, pol, weights = Vector{T}[], Vector{CT}[], Vector{CT}[], Vector{CT}[]
+
+    S = [-one(T), one(T)]                       # initial nodes
+    fS = f.(S)
+    besterr, bestm = Inf, NaN
+    while true                                  # main loop
+        m = length(S)
+        push!(nodes, copy(S))
+        X = refine(S, max(refinement, ceil(16-m)))    # test points
+        fX = f.(X)
+        push!(vals, copy(fS))
+        C = [ 1/(x-s) for x in X, s in S ]
+        L = [a-b for a in fX, b in fS] .* C
+        _, _, V = svd(L)
+        w = V[:,end]
+        push!(weights, w)
+        R = (C*(w.*fS)) ./ (C*w)                # values of the rational interpolant
+        push!(err, norm(fX - R, Inf) )
+
+        #zp =  poles(Barycentric(S, fS, w))
+        zp, _, _ = prz(S, fS, w)
+        push!(pol, zp)
+        I = (imag(zp).==0) .& (abs.(zp).<=1)    # bad poles indicator
+        push!(nbad, sum(I))
+        # If valid and the best yet, save it:
+        if (last(nbad) == 0) && (last(err) < besterr)
+            besterr, bestm = last(err), m
+        end
+
+        fmax = max( norm(fS, Inf), norm(fX, Inf) )     # scale of f
+        # Check stopping:
+        if (besterr <= tol*fmax) ||                             # goal met
+            (m == mmax + 1) ||                                  # max degree reached
+            ((m - bestm >= lookahead) && (besterr < 1e-2*fmax)) # stagnation
+            break
+        end
+
+        # We're continuing the iteration, so add the worst test point to the nodes:
+        _, j = findmax(abs, fX - R)
+        push!(S, X[j])
+        push!(fS, fX[j])
+    end
+
+    # Use the best result found:
+    S, y, w = nodes[bestm-1], vals[bestm-1], weights[bestm-1]
+    idx = sortperm(S)
+    x, y, w = S[idx], y[idx], w[idx]
+    if isreal(w) && isreal(y)
+        y, w = real(y), real(w)
+    end
+
+    # TODO: Consider borrowing the stats stuff too.
+    # if stats
+    #     if isreal(w) && isreal(y)
+    #         weights = real.(weights)
+    #         vals = real.(vals)
+    #     end
+    #     st = ConvergenceStats(bestm-1, err, nbad, nodes, vals, weights, pol)
+    #     r = AAAapprox(x, y, w, [])
+    # else
+    #     r = AAAapprox(x, y, w)
+    # end
+
+    r = AAAapprox(x, y, w, [])
+    return r
 end
