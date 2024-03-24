@@ -246,6 +246,10 @@ fig
 
 Those that are away from the real line are far from the original domain of the data, though, or have small residues, as shown.
 
+## Acknowledgements
+  * Some parts of [Chebfun](https://www.chebfun.org/about/) have been ported to Julia for this project
+  * A function from [RationalFunctionApproximation](https://github.com/Complexvariables/RationFunctionApproximation.jl) has been borrowed (the continuum verion of the AAA algorithm on the interval [-1,1])
+
 ## References
 
 <a name="ref1"></a>[1] [The AAA algorithm for rational approximation](http://arxiv.org/abs/1612.00337)
@@ -253,3 +257,5 @@ Those that are away from the real line are far from the original domain of the d
 <a name="ref2"></a>[2] [Barycentric rational interpolation with no poles and high rates of approximation](https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.475.3902&rep=rep1&type=pdf)
 
 <a name="ref3"></a>[3] [Some New Aspects of Rational Interpolation](https://www.ams.org/journals/mcom/1986-47-175/S0025-5718-1986-0842136-8/S0025-5718-1986-0842136-8.pdf)
+
+<a name="ref4"></a>[4] [AAA rational approximation on a continuum](https://arxiv.org/abs/2305.03677)
