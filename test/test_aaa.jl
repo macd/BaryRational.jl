@@ -1,8 +1,8 @@
 using SpecialFunctions
 using ForwardDiff
 
-# sort by increasing absolute value of the real part. Hack to get poles ordered
-# for testing
+# HACK: Sort by increasing absolute value of the real part. 
+# This is a hack to get poles ordered for test purposes.
 csort(x) = sort(x, lt = (x,y) -> abs(real(x)) < abs(real(y)))
 
 function test_aaa_spiral(T=Float64, verbose=false)
@@ -160,9 +160,6 @@ function test_aaa_scale_invar()
     # Check for exact scale-invariance
     Z = range(BigFloat(3//10), BigFloat(15//10), length=100)
     F = exp.(Z) ./ (BigFloat(1)+BigFloat(1)*im)
-    # r1 = aaa(Z, F, clean=0)
-    # r2 = aaa(Z, BigFloat(2)^311*F, clean=0)
-    # r3 = aaa(Z, BigFloat(2)^-311*F, clean=0)
     r1 = aaa(Z, F)
     r2 = aaa(Z, BigFloat(2)^311*F)
     r3 = aaa(Z, BigFloat(2)^-311*F)
@@ -220,7 +217,7 @@ end
 
 
 # We approximate a function with a branch cut which requires a lot of
-# poles/iterations since AAA clusters poles near branch points. See PR #8
+# poles/iterations since AAA clusters poles near branch points.
 function test_aaa_maxiters()
     f(a) = (q = sqrt(Complex(a^2 - 1)); (abs(q-a) <= 1 ? 1 : -1) * 2pi * inv(q))
     f(x, η) = f(cos(x) + im*η)

@@ -15,8 +15,12 @@ function test_aaa_deriv()
 end
 
 
-# This one is challenging because we will have a pole (not simple) at zero
-# and we have accuracy problems there. But elsewhere it is OK.
+# This one is challenging because we will have a downward spike at zero (and
+# hence a discontinuity in the derivative) and we will have accuracy problems
+# there. But elsewhere it is OK.
+#
+# TODO: rework this to use exponential clustering near zero using logrange for
+#       the discrete AAA version. Also try the continuum AAA version
 function test_aaa_deriv_pole()
     h(x) = cos(x) ^ 3 + sqrt(abs(sin(x)))
     x = [-1.0:0.01:1.0;]
@@ -25,7 +29,7 @@ function test_aaa_deriv_pole()
     xx = x .+ 0.005
     dya = deriv.(g, xx)
     dyf = ForwardDiff.derivative.(h, xx)
-    idx = 94:106
+    idx = 94:106  # here be errors
     dya[idx] .= dyf[idx] .= 0.0
     return  norm(dya - dyf, Inf) < 1e-9
 end
