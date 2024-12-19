@@ -8,8 +8,8 @@ using BaryRational
 # Holy heck, how did he do that? First, he uses his interpolation formula
 # and goes to the tenth order (only even orders). Second, he actually
 # interpolates the log of the factorial (who better than Stirling?) to find
-# log((10.5)!)) and then exponentiates that and back tracks to 0.5.  Very cool.
-# Here we use AAA instead of his interpolation formula.
+# log((10.5)!)) and then exponentiates that and finally back tracks it 
+# to 0.5.  Very cool. Here we use AAA instead of his interpolation formula.
 function main()
     xx = [5:16;]
     yy = loggamma.(xx .+ 1)
