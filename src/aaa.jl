@@ -88,8 +88,10 @@ Note 2. The code (more or less) works with `BigFloat`. Since `prz` has not been 
     -0.3271946967961522441733440852676206060643014068937597915900562770705763744817662
 ```
 """
-function aaa(Z::AbstractVector{U}, F::AbstractVector{S}; tol=1e-13, mmax=150,
-             verbose=false, clean=1, do_sort=true) where {S, U}
+function aaa(Z, F; tol=1e-13, mmax=150,
+             verbose=false, clean=1, do_sort=true)
+    U = eltype(Z)
+    S = eltype(F)
     # filter out any NaN's or Inf's in the input
     keep = isfinite.(F)
     F = F[keep]
