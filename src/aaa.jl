@@ -64,14 +64,20 @@ Computes the rational approximation of data `F` on set `Z` using the AAA algorit
 - `mmax`: Degree of numerator and denominator is at most `(mmax-1, mmax-1)`.
 - `verbose`: If `true`, prints detailed information during computation.
 - `clean`: If `true`, detects and removes Froissart doublets.
-- `do_sort`: If `true`, sorts the values of `Z` (and correspondingly `F`) in ascending order.
+- `do_sort`: If `true` sorts the values of `Z` (and correspondingly `F`) in ascending order.
 
 # Returns
-- `r::AAAapprox`: A  struct representing the approximant that called as a function. The struct has fields, `z, f, w` = vectors of support points, function values, weights and  `errvec` = vector of errors at each step.
+- `r::AAAapprox`: A  struct representing the approximant that called as a function. The
+   struct has fields, `z, f, w` = vectors of support points, function values, weights and
+   `errvec` = vector of errors at each step.
 
-Note 1. Changes from the MATLAB version include: Switched order of `Z` and `F` in the function signature. Added `verbose` and `clean` boolean flags. Poles, residues, and zeros (`pol`, `res`, `zer`) are calculated on demand by calling `prz(z::AAAapprox)`.
+Note 1. Changes from the MATLAB version include: Switched order of `Z` and `F` in the
+function signature. Added `verbose` and `clean` boolean flags. Poles, residues, and zeros
+(`pol`, `res`, `zer`) are calculated on demand by calling `prz(z::AAAapprox)`.
 
-Note 2. The code (more or less) works with `BigFloat`. Since `prz` has not been made generic, when using `BigFloat`, set `clean=false`. Specify `tol` as a tiny `BigFloat` value explicitly, as default tolerances may not be sufficient.
+Note 2. The code (more or less) works with `BigFloat`. Since `prz` has not been made
+generic, when using `BigFloat`, set `clean=false`. Specify `tol` as a tiny `BigFloat`
+value explicitly, as default tolerances may not be sufficient.
 
 # Example
 ```julia
