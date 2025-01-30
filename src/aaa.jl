@@ -52,32 +52,35 @@ function compute_weights(m, J, A::S) where {T, S <: AbstractMatrix{T}}
 end
 
 
-"""aaa  rational approximation of data F on set Z
-        r = aaa(Z, F; tol=1e-13, mmax=150, verbose=false, clean=true,
-        do_sort=false)
+"""
+    aaa(Z, F; tol=1e-13, mmax=150, verbose=false, clean=true, do_sort=false) -> r::AAAapprox
 
- Input: Z = vector of sample points
-        F = vector of data values at the points in Z
-        tol = relative tolerance tol, set to 1e-13 if omitted
-        mmax: max type is (mmax-1, mmax-1), set to 100 if omitted
-        verbose: print info while calculating default = false
-        clean: detect and remove Froissart doublets default = true
-        do_sort: sort the x values (and f) by ascending value default = false
+Computes the rational approximation of data `F` on set `Z` using the AAA algorithm.
 
- Output: r = an AAA approximant as a callable struct with fields
-         z, f, w = vectors of support pts, function values, weights
-         errvec = vector of errors at each step
+# Arguments
+- `Z`: Vector of sample points.
+- `F`: Vector of values at the points in `Z`.
+- `tol`: Relative tolerance.
+- `mmax`: Degree of numerator and denominator is at most `(mmax-1, mmax-1)`.
+- `verbose`: If `true`, prints detailed information during computation.
+- `clean`: If `true`, detects and removes Froissart doublets.
+- `do_sort`: If `true` sorts the values of `Z` (and correspondingly `F`) in ascending order.
 
- Note 1: Changes from matlab version:
-         switched order of Z and F in function signature
-         added verbose and clean boolean flags
-         pol, res, zer = vectors of poles, residues, zeros are now only
-         calculated on demand by calling prz(z::AAAapprox)
+# Returns
+- `r::AAAapprox`: A  struct representing the approximant that called as a function. The
+   struct has fields, `z, f, w` = vectors of support points, function values, weights and
+   `errvec` = vector of errors at each step.
 
- Note 2: This does (more or less) work with BigFloats. Caveats: since prz
-         has not been made generic, you must set clean=false. Also, must
-         set tol to a tiny BigFloat value rather than use the defaults.
+Note 1. Changes from the MATLAB version include: Switched order of `Z` and `F` in the
+function signature. Added `verbose` and `clean` boolean flags. Poles, residues, and zeros
+(`pol`, `res`, `zer`) are calculated on demand by calling `prz(z::AAAapprox)`.
 
+Note 2. The code (more or less) works with `BigFloat`. Since `prz` has not been made
+generic, when using `BigFloat`, set `clean=false`. Specify `tol` as a tiny `BigFloat`
+value explicitly, as default tolerances may not be sufficient.
+
+# Example
+```julia
     using BaryRational
     xrat = [-1//1:1//100:1//1;];
     xbig = BigFloat.(xrat);
@@ -89,9 +92,12 @@ end
 
     julia @v1.10> sf(BigFloat(-1//3))
     -0.3271946967961522441733440852676206060643014068937597915900562770705763744817662
+```
 """
-function aaa(Z::AbstractVector{U}, F::AbstractVector{S}; tol=1e-13, mmax=150,
-             verbose=false, clean=1, do_sort=true) where {S, U}
+function aaa(Z, F; tol=1e-13, mmax=150,
+             verbose=false, clean=1, do_sort=true)
+    U = eltype(Z)
+    S = eltype(F)
     # filter out any NaN's or Inf's in the input
     keep = isfinite.(F)
     F = F[keep]
@@ -178,7 +184,7 @@ function aaa(Z::AbstractVector{U}, F::AbstractVector{S}; tol=1e-13, mmax=150,
     end
 
     r = AAAapprox(z, f, w, errvec)
-    
+
     # We must sort if we plan on using bary rather than reval.
     do_sort && sort!(r)
 

@@ -1,7 +1,7 @@
 using SpecialFunctions
 using ForwardDiff
 
-# HACK: Sort by increasing absolute value of the real part. 
+# HACK: Sort by increasing absolute value of the real part.
 # This is a hack to get poles ordered for test purposes.
 csort(x) = sort(x, lt = (x,y) -> abs(real(x)) < abs(real(y)))
 
@@ -268,3 +268,9 @@ function test_aaa_float32()
     end
 end
 
+function test_aaa_nonvector() # Regression test for #11
+    x = [1 2 3.0 4.0 5.0]; y = sin.(x);
+    f1 = aaa(x,y);
+    f2 = aaa(vec(x),vec(y));
+    return f1(1.5) ≈ f2(1.5)
+end
