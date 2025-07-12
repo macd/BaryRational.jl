@@ -53,7 +53,7 @@ end
 
 
 """
-    aaa(Z, F; tol=1e-13, mmax=150, verbose=false, clean=1, do_sort=true, cleanup_tol = 1e-13) -> r::AAAapprox
+    aaa(Z, F; tol=1e-13, mmax=150, verbose=false, clean=1, do_sort=true, cleanup_tol=1e-13) -> r::AAAapprox
 
 Computes the rational approximation of data `F` on set `Z` using the AAA algorithm.
 
@@ -96,7 +96,7 @@ value explicitly, as default tolerances may not be sufficient.
 ```
 """
 function aaa(Z, F; tol=1e-13, mmax=150,
-             verbose=false, clean=1, do_sort=true)
+             verbose=false, clean=1, do_sort=true, cleanup_tol=1e-13)
     U = eltype(Z)
     S = eltype(F)
     # filter out any NaN's or Inf's in the input
