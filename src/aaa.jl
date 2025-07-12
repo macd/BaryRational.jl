@@ -53,7 +53,7 @@ end
 
 
 """
-    aaa(Z, F; tol=1e-13, mmax=150, verbose=false, clean=true, do_sort=false) -> r::AAAapprox
+    aaa(Z, F; tol=1e-13, mmax=150, verbose=false, clean=1, do_sort=true) -> r::AAAapprox
 
 Computes the rational approximation of data `F` on set `Z` using the AAA algorithm.
 
