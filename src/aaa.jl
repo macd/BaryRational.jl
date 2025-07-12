@@ -53,7 +53,7 @@ end
 
 
 """
-    aaa(Z, F; tol=1e-13, mmax=150, verbose=false, clean=1, do_sort=true) -> r::AAAapprox
+    aaa(Z, F; tol=1e-13, mmax=150, verbose=false, clean=1, do_sort=true, cleanup_tol = 1e-13) -> r::AAAapprox
 
 Computes the rational approximation of data `F` on set `Z` using the AAA algorithm.
 
@@ -63,8 +63,9 @@ Computes the rational approximation of data `F` on set `Z` using the AAA algorit
 - `tol`: Relative tolerance.
 - `mmax`: Degree of numerator and denominator is at most `(mmax-1, mmax-1)`.
 - `verbose`: If `true`, prints detailed information during computation.
-- `clean`: If `true`, detects and removes Froissart doublets.
+- `clean`: If `1`, `2`, `3`, detects and removes Froissart doublets using different methods.
 - `do_sort`: If `true` sorts the values of `Z` (and correspondingly `F`) in ascending order.
+- `cleanup_tol`: Tolerance used on the cleanup of Froissart doublets.
 
 # Returns
 - `r::AAAapprox`: A  struct representing the approximant that called as a function. The
@@ -189,14 +190,7 @@ function aaa(Z, F; tol=1e-13, mmax=150,
     do_sort && sort!(r)
 
     # Remove Froissart doublets if desired.  We do this in place.
-    # TODO: use clean_tol instead of 1e-13
-    if clean == 1
-        cleanup!(r, Z, F; verbose=verbose)
-    elseif clean == 2
-        r = cleanup2!(r, Z, F; verbose=verbose)
-    elseif clean == 3
-        old_cleanup!(r, Z, F; verbose=verbose)
-    end
+    cleanup!(Val(clean), r, Z, F; verbose = verbose, cleanup_tol = cleanup_tol)
 
     return r
 end
@@ -250,10 +244,21 @@ function reval(zz, z, f, w)
     r = size(zz) == () ? r[1] : reshape(r, size(zz))  # the AAA approximation
 end
 
+function cleanup!(::Val{0}, r, Zp::AbstractVector{T}, Fp::AbstractVector{T};
+                  verbose=false, cleanup_tol=1e-13) where {T}
+    verbose && println("No cleanup")
+    return nothing
+end
+
+# for compatibility
+function cleanup!(::Val{false}, r, Zp::AbstractVector{T}, Fp::AbstractVector{T};
+                  verbose=false, cleanup_tol=1e-13) where {T}
+    cleanup!(Val(0), r, Zp, Fp; verbose=verbose, cleanup_tol = cleanup_tol)
+end
 
 # This modifies the rational approximant r, if necessary. Updated July 2023 to
 # more or less match the Chebfun version.
-function cleanup!(r, Zp::AbstractVector{T}, Fp::AbstractVector{T};
+function cleanup!(::Val{1}, r, Zp::AbstractVector{T}, Fp::AbstractVector{T};
                   verbose=false, cleanup_tol=1e-13) where {T}
     z, f, w = copy(r.x), copy(r.f), copy(r.w)
     pol, res, zer = prz(z, f, w)
@@ -310,12 +315,19 @@ function cleanup!(r, Zp::AbstractVector{T}, Fp::AbstractVector{T};
         r.f .= f
         r.w .= w
     end
-    return r
+    return nothing
 end
+
+# for compatibility
+function cleanup!(::Val{true}, r, Zp::AbstractVector{T}, Fp::AbstractVector{T};
+                  verbose=false, cleanup_tol=1e-13) where {T}
+    cleanup!(Val(1), r, Zp, Fp; verbose=verbose, cleanup_tol = cleanup_tol)
+end
+ 
 
 # The old ways are sometimes the good ways... This was coded from the original
 # AAA paper. Only calculate the updated z, f, and w
-function old_cleanup!(r, Zp::AbstractVector{T}, Fp::AbstractVector{T};
+function cleanup!(::Val{3}, r, Zp::AbstractVector{T}, Fp::AbstractVector{T};
                   verbose=false, cleanup_tol=1e-13) where {T}
     z, f, w = r.x, r.f, r.w
     pol, res, zer = prz(z, f, w)
@@ -326,7 +338,7 @@ function old_cleanup!(r, Zp::AbstractVector{T}, Fp::AbstractVector{T};
     ii = findall(abs.(res) .< 1e-13)  # find negligible residues
     ni = length(ii)
     ni == 0 && return
-    println("$ni Froissart doublets. Number of residues = ", length(res))
+    verbose && println("$ni Froissart doublets. Number of residues = ", length(res))
 
     # For each spurious pole find and remove closest support point:
     @inbounds for j = 1:ni
@@ -359,8 +371,8 @@ end
 # This considers pole-zero distances. Ported from Chebfun July 2023
 # Note that we pass in the original sample set instead of sticking it
 # on the struct.
-function cleanup2!(r, Zp::AbstractVector{T}, Fp::AbstractVector{T};
-                   cleanup_tol=1//10^13, verbose=false) where {T}
+function cleanup!(::Val{2}, r, Zp::AbstractVector{T}, Fp::AbstractVector{T};
+                  verbose=false, cleanup_tol=1e-13) where {T}
     z = copy(r.x); f = copy(r.f); w = copy(r.w)
     pol, res, zer = prz(z, f, w)
     FT = typeof(abs(T(0)))
