@@ -9,7 +9,7 @@ function test_aaa_spiral(T=Float64, verbose=false)
     zz = exp.(range(-0.5, complex(0.5, 15*pi), length=1000))
 
     yy = tan.(pi*zz/2)
-    f = aaa(zz, yy, clean=false, verbose=verbose)
+    f = aaa(zz, yy, clean=0, verbose=verbose)
     pol, res, zer = prz(f)
     spol = csort(pol)
     verbose && foreach(println, real(spol))

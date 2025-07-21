@@ -6,7 +6,7 @@ using SpecialFunctions
 xx = [-10.0:0.01:0.0;];
 yy = airyai.(xx);
 
-fa = aaa(xx, yy, clean=false, verbose=true)
+fa = aaa(xx, yy, clean=0, verbose=true)
 
 # Generate a 1000 random test points. Notice we take a much smaller step size 
 # here to (somewhat) avoid landing on one of the support points

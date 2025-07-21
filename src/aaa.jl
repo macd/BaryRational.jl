@@ -63,7 +63,7 @@ Computes the rational approximation of data `F` on set `Z` using the AAA algorit
 - `tol`: Relative tolerance.
 - `mmax`: Degree of numerator and denominator is at most `(mmax-1, mmax-1)`.
 - `verbose`: If `true`, prints detailed information during computation.
-- `clean`: If `1`, `2`, `3`, detects and removes Froissart doublets using different methods.
+- `clean`: If `1`, `2`, `3`, detects and removes Froissart doublets using different methods, if `0` does not make a clean.
 - `do_sort`: If `true` sorts the values of `Z` (and correspondingly `F`) in ascending order.
 - `cleanup_tol`: Tolerance used on the cleanup of Froissart doublets.
 
@@ -77,7 +77,7 @@ function signature. Added `verbose` and `clean` boolean flags. Poles, residues, 
 (`pol`, `res`, `zer`) are calculated on demand by calling `prz(z::AAAapprox)`.
 
 Note 2. The code (more or less) works with `BigFloat`. Since `prz` has not been made
-generic, when using `BigFloat`, set `clean=false`. Specify `tol` as a tiny `BigFloat`
+generic, when using `BigFloat`, set `clean=0`. Specify `tol` as a tiny `BigFloat`
 value explicitly, as default tolerances may not be sufficient.
 
 # Example
@@ -86,7 +86,7 @@ value explicitly, as default tolerances may not be sufficient.
     xrat = [-1//1:1//100:1//1;];
     xbig = BigFloat.(xrat);
     fbig = sin.(xbig);
-    sf = aaa(xbig, fbig, verbose=true, clean=false, tol=BigFloat(1/10^40));
+    sf = aaa(xbig, fbig, verbose=true, clean=0, tol=BigFloat(1/10^40));
 
     julia @v1.10> sin(BigFloat(-1//3))
     -0.3271946967961522441733440852676206060643014068937597915900562770705763744817618
@@ -250,12 +250,6 @@ function cleanup!(::Val{0}, r, Zp::AbstractVector{T}, Fp::AbstractVector{T};
     return nothing
 end
 
-# for compatibility
-function cleanup!(::Val{false}, r, Zp::AbstractVector{T}, Fp::AbstractVector{T};
-                  verbose=false, cleanup_tol=1e-13) where {T}
-    cleanup!(Val(0), r, Zp, Fp; verbose=verbose, cleanup_tol = cleanup_tol)
-end
-
 # This modifies the rational approximant r, if necessary. Updated July 2023 to
 # more or less match the Chebfun version.
 function cleanup!(::Val{1}, r, Zp::AbstractVector{T}, Fp::AbstractVector{T};
@@ -317,13 +311,6 @@ function cleanup!(::Val{1}, r, Zp::AbstractVector{T}, Fp::AbstractVector{T};
     end
     return nothing
 end
-
-# for compatibility
-function cleanup!(::Val{true}, r, Zp::AbstractVector{T}, Fp::AbstractVector{T};
-                  verbose=false, cleanup_tol=1e-13) where {T}
-    cleanup!(Val(1), r, Zp, Fp; verbose=verbose, cleanup_tol = cleanup_tol)
-end
- 
 
 # The old ways are sometimes the good ways... This was coded from the original
 # AAA paper. Only calculate the updated z, f, and w
