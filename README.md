@@ -248,7 +248,7 @@ Those that are away from the real line are far from the original domain of the d
 
 ## Acknowledgements
   * Some parts of [Chebfun](https://www.chebfun.org/about/) have been ported to Julia for this project
-  * A function from [RationalFunctionApproximation](https://github.com/Complexvariables/RationFunctionApproximation.jl) has been borrowed (the continuum verion of the AAA algorithm on the interval [-1,1])
+  * A function from [RationalFunctionApproximation](https://github.com/complexvariables/RationalFunctionApproximation.jl) has been borrowed (the continuum verion of the AAA algorithm on the interval [-1,1])
 
 ## References
 
@@ -259,3 +259,12 @@ Those that are away from the real line are far from the original domain of the d
 <a name="ref3"></a>[3] [Some New Aspects of Rational Interpolation](https://www.ams.org/journals/mcom/1986-47-175/S0025-5718-1986-0842136-8/S0025-5718-1986-0842136-8.pdf)
 
 <a name="ref4"></a>[4] [AAA rational approximation on a continuum](https://arxiv.org/abs/2305.03677)
+
+<a name="ref4"></a>[5] [An algorithm for best rational approximation based on barycentric rational interpolation](https://www.researchgate.net/profile/Clemens-Hofreither/publication/343935351_An_algorithm_for_best_rational_approximation_based_on_barycentric_rational_interpolation/links/5f48f51692851c6cfdf0e7a8/An-algorithm-for-best-rational-approximation-based-on-barycentric-rational-interpolation.pdf)
+
+
+
+## Other projects
+  * [Chebfun](https://www.chebfun.org/)
+  * [RationalFunctionApproximation](https://github.com/complexvariables/RationalFunctionApproximation.jl)
+  * [baryrat](https://github.com/c-f-h/baryrat)
